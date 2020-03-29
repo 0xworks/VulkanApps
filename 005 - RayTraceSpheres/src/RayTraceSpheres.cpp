@@ -245,7 +245,7 @@ void RayTraceSpheres::CreateScene() {
       }
    };
 
-   AddBottomLevelAccelerationStructure(geometry);
+   CreateBottomLevelAccelerationStructures(geometry);
 
    std::vector<Vulkan::GeometryInstance> geometryInstances;
    std::vector<Material> materials;
@@ -362,6 +362,8 @@ void RayTraceSpheres::CreateScene() {
    // If you want to instantiate geometries independently of each other, then they need to be in different BLASs
    // Apparently, a general rule is that the fewer BLASs the better. 
    CreateTopLevelAccelerationStructure(geometryInstances);
+
+   BuildAccelerationStructures(geometryInstances);
 }
 
 

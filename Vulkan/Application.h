@@ -33,9 +33,10 @@ struct ApplicationSettings {
 
 struct AccelerationStructure {
    AccelerationStructure() = default;
-   AccelerationStructure(vk::AccelerationStructureNV accelerationStructure) : m_AccelerationStructure(accelerationStructure) {}
-   vk::DeviceMemory m_Memory;
+   AccelerationStructure(vk::AccelerationStructureInfoNV accelerationStructureInfo) : m_AccelerationStructureInfo(accelerationStructureInfo) {}
+   vk::AccelerationStructureInfoNV m_AccelerationStructureInfo;
    vk::AccelerationStructureNV m_AccelerationStructure;
+   vk::DeviceMemory m_Memory;
    uint64_t m_Handle = 0;
 };
 
@@ -169,12 +170,13 @@ protected:
    ///////////////////////////////
    // Ray tracing stuff
 
-   void AddBottomLevelAccelerationStructure(vk::ArrayProxy<const vk::GeometryNV> geometries);
+   void CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const vk::GeometryNV> geometries);
    void DestroyBottomLevelAccelerationStructures();
 
    void CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances);
    void DestroyTopLevelAccelerationStructure();
 
+   void BuildAccelerationStructures(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances);
    //
    //////////////////////////////
 

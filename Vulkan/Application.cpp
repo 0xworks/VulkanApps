@@ -1099,73 +1099,66 @@ void Application::GenerateMIPMaps(vk::Image image, const vk::Format format, cons
 }
 
 
-void Application::AddBottomLevelAccelerationStructure(vk::ArrayProxy<const vk::GeometryNV> geometries) {
-   vk::AccelerationStructureInfoNV accelerationStructureInfo = {
-      vk::AccelerationStructureTypeNV::eBottomLevel /*type*/,
-      {}                                            /*flags*/,
-      0                                             /*instanceCount*/,
-      geometries.size()                             /*geometryCount*/,
-      geometries.data()                             /*pGeometries*/
-   };
-
-   vk::AccelerationStructureCreateInfoNV accelerationStructureCI  = {
-      0 /*compactedSize*/,
-      accelerationStructureInfo /*info*/
-   };
-   m_BLAS.emplace_back(m_Device.createAccelerationStructureNV(accelerationStructureCI));
-
-   vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo = {
-      vk::AccelerationStructureMemoryRequirementsTypeNV::eObject /*type*/,
-      m_BLAS.back().m_AccelerationStructure                      /*accelerationStructure*/
-   };
-
-   vk::MemoryRequirements2 memoryRequirements2 = m_Device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo);
-
-   vk::MemoryAllocateInfo memoryAllocateInfo = {
-      memoryRequirements2.memoryRequirements.size /*allocationSize*/,
-      Buffer::FindMemoryType(m_PhysicalDevice, memoryRequirements2.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
-   };
-   m_BLAS.back().m_Memory = m_Device.allocateMemory(memoryAllocateInfo);
-
-   vk::BindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo = {
-      m_BLAS.back().m_AccelerationStructure /*accelerationStructure*/,
-      m_BLAS.back().m_Memory                /*memory*/,
-      0                                     /*memoryOffset*/,
-      0                                     /*deviceIndexCount*/,
-      nullptr                               /*pDeviceIndices*/
-   };
-   m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
-   m_Device.getAccelerationStructureHandleNV<uint64_t>(m_BLAS.back().m_AccelerationStructure, m_BLAS.back().m_Handle);
-
-   vk::MemoryRequirements2 memoryRequirements = m_Device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo);
-   const vk::DeviceSize scratchBufferSize = memoryRequirements.memoryRequirements.size;
-
-   Vulkan::Buffer scratchBuffer = {
-      m_Device,
-      m_PhysicalDevice,
-      scratchBufferSize,
-      vk::BufferUsageFlagBits::eRayTracingNV,
-      vk::MemoryPropertyFlagBits::eDeviceLocal
-   };
-
-   SubmitSingleTimeCommands([&geometries, &scratchBuffer, this] (vk::CommandBuffer cmd) {
-      // Build bottom level acceleration structure
+void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const vk::GeometryNV> geometries) {
+   //
+   // one BLAS per geometry (might not be quite what client wants, but Too Bad) 
+   //
+   // We create all of the BLAS, and then allocate one buffer for all of them (each one is offset into buffer)
+   //
+   for (const auto& geometry : geometries) {
       vk::AccelerationStructureInfoNV accelerationStructureInfo = {
          vk::AccelerationStructureTypeNV::eBottomLevel /*type*/,
          {}                                            /*flags*/,
          0                                             /*instanceCount*/,
-         static_cast<uint32_t>(geometries.size())      /*geometryCount*/,
-         geometries.data()                             /*pGeometries*/
+         1                                             /*geometryCount*/,
+         &geometry                                     /*pGeometries*/
       };
+      m_BLAS.emplace_back(accelerationStructureInfo);
 
-      cmd.buildAccelerationStructureNV(accelerationStructureInfo, nullptr, 0, false, m_BLAS.back().m_AccelerationStructure, nullptr, scratchBuffer.m_Buffer, 0);
-
-      vk::MemoryBarrier memoryBarrier = {
-         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*srcAccesMask*/,
-         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*dstAccessMask*/
+      vk::AccelerationStructureCreateInfoNV accelerationStructureCI = {
+         0                                         /*compactedSize*/,
+         m_BLAS.back().m_AccelerationStructureInfo /*info*/
       };
-      cmd.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, {}, memoryBarrier, nullptr, nullptr);
+      m_BLAS.back().m_AccelerationStructure = m_Device.createAccelerationStructureNV(accelerationStructureCI);
+   }
+
+   std::vector<vk::MemoryRequirements2> memoryRequirements;
+   for (const auto& blas : m_BLAS) {
+      memoryRequirements.emplace_back(
+         m_Device.getAccelerationStructureMemoryRequirementsNV({
+            vk::AccelerationStructureMemoryRequirementsTypeNV::eObject /*type*/,
+            blas.m_AccelerationStructure                               /*accelerationStructure*/
+         })
+      );
+   }
+
+   vk::DeviceSize totalMemorySize = 0;
+   uint32_t memoryType = 0;
+   for (const auto& memoryRequirement : memoryRequirements) {
+      totalMemorySize += memoryRequirement.memoryRequirements.size;
+      memoryType = memoryRequirement.memoryRequirements.memoryTypeBits;
+   }
+
+   vk::DeviceMemory objectMemory = m_Device.allocateMemory({
+      totalMemorySize,
+      Buffer::FindMemoryType(m_PhysicalDevice, memoryType, vk::MemoryPropertyFlagBits::eDeviceLocal)
    });
+
+   vk::DeviceSize memoryOffset = 0;
+   uint32_t i = 0;
+   for (auto& blas : m_BLAS) {
+      blas.m_Memory = objectMemory;
+      vk::BindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo = {
+         blas.m_AccelerationStructure /*accelerationStructure*/,
+         blas.m_Memory                /*memory*/,
+         memoryOffset                 /*memoryOffset*/,
+         0                            /*deviceIndexCount*/,
+         nullptr                      /*pDeviceIndices*/
+      };
+      m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
+      m_Device.getAccelerationStructureHandleNV<uint64_t>(blas.m_AccelerationStructure, blas.m_Handle);
+      memoryOffset += memoryRequirements[i++].memoryRequirements.size;
+   }
 }
 
 
@@ -1174,18 +1167,19 @@ void Application::DestroyBottomLevelAccelerationStructures() {
       for (auto& blas : m_BLAS) {
          m_Device.destroy(blas.m_AccelerationStructure);
          blas.m_AccelerationStructure = nullptr;
-         if (blas.m_Memory) {
-            m_Device.free(blas.m_Memory);
-            blas.m_Memory = nullptr;
-         }
          blas.m_Handle = 0;
+      }
+      if (m_BLAS.size() > 0) {
+         if (m_BLAS.front().m_Memory) {
+            m_Device.free(m_BLAS.front().m_Memory);
+         }
       }
    }
 }
 
 
 void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances) {
-   vk::AccelerationStructureInfoNV accelerationStructureInfo = {
+   m_TLAS.m_AccelerationStructureInfo = {
       vk::AccelerationStructureTypeNV::eTopLevel /*type*/,
       {}                                         /*flags*/,
       geometryInstances.size()                   /*instanceCount*/,
@@ -1193,24 +1187,20 @@ void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulka
       nullptr                                    /*pGeometries*/
    };
 
-   vk::AccelerationStructureCreateInfoNV accelerationStructureCI = {
-      0 /*compactedSize*/,
-      accelerationStructureInfo /*info*/
-   };
-   m_TLAS.m_AccelerationStructure = m_Device.createAccelerationStructureNV(accelerationStructureCI);
+   m_TLAS.m_AccelerationStructure = m_Device.createAccelerationStructureNV({
+      0                                  /*compactedSize*/,
+      m_TLAS.m_AccelerationStructureInfo /*info*/
+   });
 
-   vk::AccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo = {
+   vk::MemoryRequirements2 memoryRequirementsTLAS = m_Device.getAccelerationStructureMemoryRequirementsNV({
       vk::AccelerationStructureMemoryRequirementsTypeNV::eObject /*type*/,
       m_TLAS.m_AccelerationStructure                             /*accelerationStructure*/
-   };
+   });
 
-   vk::MemoryRequirements2 memoryRequirements2 = m_Device.getAccelerationStructureMemoryRequirementsNV(memoryRequirementsInfo);
-
-   vk::MemoryAllocateInfo memoryAllocateInfo = {
-      memoryRequirements2.memoryRequirements.size /*allocationSize*/,
-      Buffer::FindMemoryType(m_PhysicalDevice, memoryRequirements2.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
-   };
-   m_TLAS.m_Memory = m_Device.allocateMemory(memoryAllocateInfo);
+   m_TLAS.m_Memory = m_Device.allocateMemory({
+      memoryRequirementsTLAS.memoryRequirements.size /*allocationSize*/,
+      Buffer::FindMemoryType(m_PhysicalDevice, memoryRequirementsTLAS.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+   });
 
    vk::BindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo = {
       m_TLAS.m_AccelerationStructure /*accelerationStructure*/,
@@ -1221,42 +1211,6 @@ void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulka
    };
    m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
    m_Device.getAccelerationStructureHandleNV<uint64_t>(m_TLAS.m_AccelerationStructure, m_TLAS.m_Handle);
-
-
-   Vulkan::Buffer instanceBuffer = {
-      m_Device,
-      m_PhysicalDevice,
-      sizeof(Vulkan::GeometryInstance) * geometryInstances.size(),
-      vk::BufferUsageFlagBits::eRayTracingNV,
-      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-   };
-   instanceBuffer.CopyFromHost(0, sizeof(Vulkan::GeometryInstance) * geometryInstances.size(), geometryInstances.data());
-
-   const vk::DeviceSize scratchBufferSize = memoryRequirements2.memoryRequirements.size;
-
-   Vulkan::Buffer scratchBuffer = {
-      m_Device,
-      m_PhysicalDevice,
-      scratchBufferSize,
-      vk::BufferUsageFlagBits::eRayTracingNV,
-      vk::MemoryPropertyFlagBits::eDeviceLocal
-   };
-
-   SubmitSingleTimeCommands([&geometryInstances, &instanceBuffer, &scratchBuffer, this] (vk::CommandBuffer cmd) {
-      vk::AccelerationStructureInfoNV accelerationStructureInfo = {
-         vk::AccelerationStructureTypeNV::eTopLevel /*type*/,
-         {}                                         /*flags*/,
-         geometryInstances.size()                   /*instanceCount*/,
-         0                                          /*geometryCount*/,
-         nullptr                                    /*pGeometries*/
-      };
-      vk::MemoryBarrier memoryBarrier = {
-         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*srcAccesMask*/,
-         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*dstAccessMask*/
-      };
-      cmd.buildAccelerationStructureNV(accelerationStructureInfo, instanceBuffer.m_Buffer, 0, false, m_TLAS.m_AccelerationStructure, nullptr, scratchBuffer.m_Buffer, 0);
-      cmd.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, {}, memoryBarrier, nullptr, nullptr);
-   });
 }
 
 
@@ -1270,6 +1224,71 @@ void Application::DestroyTopLevelAccelerationStructure() {
       }
       m_TLAS.m_Handle = 0;
    }
+}
+
+
+void Application::BuildAccelerationStructures(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances) {
+   std::vector<vk::MemoryRequirements2> memoryRequirements;
+   for (const auto& blas : m_BLAS) {
+      memoryRequirements.emplace_back(
+         m_Device.getAccelerationStructureMemoryRequirementsNV({
+            vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch /*type*/,
+            blas.m_AccelerationStructure                                     /*accelerationStructure*/
+         })
+      );
+   }
+
+   vk::DeviceSize totalMemorySize = 0;
+   for (const auto& memoryRequirement : memoryRequirements) {
+      totalMemorySize += memoryRequirement.memoryRequirements.size;
+   }
+
+   Vulkan::Buffer scratchBufferBLAS = {
+      m_Device,
+      m_PhysicalDevice,
+      totalMemorySize,
+      vk::BufferUsageFlagBits::eRayTracingNV,
+      vk::MemoryPropertyFlagBits::eDeviceLocal
+   };
+
+   Vulkan::Buffer instanceBuffer = {
+      m_Device,
+      m_PhysicalDevice,
+      sizeof(Vulkan::GeometryInstance) * geometryInstances.size(),
+      vk::BufferUsageFlagBits::eRayTracingNV,
+      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+   };
+   instanceBuffer.CopyFromHost(0, sizeof(Vulkan::GeometryInstance) * geometryInstances.size(), geometryInstances.data());
+
+   vk::MemoryRequirements2 memoryRequirementsTLAS = m_Device.getAccelerationStructureMemoryRequirementsNV({
+      vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch /*type*/,
+      m_TLAS.m_AccelerationStructure                                   /*accelerationStructure*/
+   });
+
+   Vulkan::Buffer scratchBufferTLAS = {
+      m_Device,
+      m_PhysicalDevice,
+      memoryRequirementsTLAS.memoryRequirements.size,
+      vk::BufferUsageFlagBits::eRayTracingNV,
+      vk::MemoryPropertyFlagBits::eDeviceLocal
+   };
+
+   SubmitSingleTimeCommands([&memoryRequirements, &scratchBufferBLAS, &instanceBuffer, &scratchBufferTLAS, this] (vk::CommandBuffer cmd) {
+      vk::DeviceSize scratchOffset = 0;
+      uint32_t i = 0;
+      for (const auto& blas : m_BLAS) {
+         cmd.buildAccelerationStructureNV(blas.m_AccelerationStructureInfo, nullptr, 0, false, blas.m_AccelerationStructure, nullptr, scratchBufferBLAS.m_Buffer, scratchOffset);
+         scratchOffset += memoryRequirements[i++].memoryRequirements.size;
+      }
+
+      vk::MemoryBarrier memoryBarrier = {
+         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*srcAccesMask*/,
+         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*dstAccessMask*/
+      };
+      cmd.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, {}, memoryBarrier, nullptr, nullptr);
+
+      cmd.buildAccelerationStructureNV(m_TLAS.m_AccelerationStructureInfo, instanceBuffer.m_Buffer, 0, false, m_TLAS.m_AccelerationStructure, nullptr, scratchBufferTLAS.m_Buffer, 0);
+   });
 }
 
 

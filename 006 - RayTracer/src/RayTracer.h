@@ -27,6 +27,9 @@ public:
    void CreateIndexBuffer();
    void DestroyIndexBuffer();
 
+   void CreateMaterialsBuffer();
+   void DestroyMaterialsBuffer();
+
    void CreateAccelerationStructures();
    void DestroyAccelerationStructures();
 

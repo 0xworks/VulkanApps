@@ -1,6 +1,7 @@
 #include "RayTracer.h"
 
 #include "Bindings.glsl"
+#include "Core.h"
 
 using uint = uint32_t;
 #include "Constants.glsl"
@@ -61,6 +62,7 @@ RayTracer::~RayTracer() {
    DestroyUniformBuffers();
    DestroyStorageImages();
    DestroyAccelerationStructures();
+   DestroyMaterialsBuffer();
    DestroyIndexBuffer();
    DestroyVertexBuffer();
 }
@@ -97,6 +99,7 @@ void RayTracer::Init() {
    CreateScene();
    CreateVertexBuffer();
    CreateIndexBuffer();
+   CreateMaterialsBuffer();
    CreateAccelerationStructures();
    CreateStorageImages();
    CreateUniformBuffers();
@@ -159,6 +162,11 @@ void RayTracer::CreateScene() {
 
 void RayTracer::CreateVertexBuffer() {
    std::vector<Vertex> vertices;
+   size_t vertexCount = 0;
+   for (const auto& model : m_Scene.Models()) {
+      vertexCount += model.Vertices().size();
+   }
+   vertices.reserve(vertexCount);
 
    // for each model in scene, pack its vertices into vertex buffer
    for (const auto& model : m_Scene.Models()) {
@@ -181,14 +189,19 @@ void RayTracer::DestroyVertexBuffer() {
 
 void RayTracer::CreateIndexBuffer() {
    std::vector<uint32_t> indices;
+   size_t indexCount = 0;
+   for (const auto& model : m_Scene.Models()) {
+      indexCount += model.Indices().size();
+   }
+   indices.reserve(indexCount);
 
    // for each model in scene, pack its indices into index buffer
-   for(size_t i = 0, numModels = m_Scene.Models().size(); i < numModels; ++i) {
-      const auto& model = m_Scene.Models().at(i);
-      const auto& indexOffset = m_Scene.ModelIndexOffsets().at(i);
+   uint32_t indexOffset = 0;
+   for(const auto& model : m_Scene.Models()) {
       for (const auto& index : model.Indices()) {
          indices.push_back(indexOffset + index);
       }
+      indexOffset += static_cast<uint32_t>(model.Vertices().size());
    }
 
    uint32_t count = static_cast<uint32_t>(indices.size());
@@ -208,21 +221,49 @@ void RayTracer::CreateIndexBuffer() {
 }
 
 
+void RayTracer::CreateMaterialsBuffer() {
+   std::vector<Material> materials;
+   uint32_t i = 0;
+
+   materials.reserve(m_Scene.Instances().size());
+   for (const auto& instance : m_Scene.Instances()) {
+      materials.emplace_back(instance.GetMaterial());
+   };
+
+   vk::DeviceSize size = materials.size() * sizeof(Material);
+
+   Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+   stagingBuffer.CopyFromHost(0, size, materials.data());
+
+   m_MaterialBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   CopyBuffer(stagingBuffer.m_Buffer, m_MaterialBuffer->m_Buffer, 0, 0, size);
+}
+
+
+void RayTracer::DestroyMaterialsBuffer() {
+   m_MaterialBuffer.reset(nullptr);
+}
+
 
 void RayTracer::CreateAccelerationStructures() {
-   for (size_t i = 0, numModels = m_Scene.Models().size(); i < numModels; ++i) {
-      vk::GeometryNV geometry = {
+   vk::DeviceSize vertexOffset = 0;
+   vk::DeviceSize indexOffset = 0;
+   std::vector<vk::GeometryNV> geometries;
+   
+   geometries.reserve(m_Scene.Models().size());
+   for (const auto& model : m_Scene.Models()) {
+      geometries.emplace_back(
          vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
          vk::GeometryDataNV {
             {
                m_VertexBuffer->m_Buffer                                  /*vertexData*/,
-               m_Scene.ModelVertexOffsets().at(i)                        /*vertexOffset*/,
-               static_cast<uint32_t>(m_Scene.Models().at(i).Vertices().size())                    /*vertexCount*/,
+               vertexOffset                                              /*vertexOffset*/,
+               static_cast<uint32_t>(model.Vertices().size())            /*vertexCount*/,
                static_cast<vk::DeviceSize>(sizeof(Vertex))               /*vertexStride*/,
                vk::Format::eR32G32B32Sfloat                              /*vertexFormat*/,
                m_IndexBuffer->m_Buffer                                   /*indexData*/,
-               m_Scene.ModelIndexOffsets().at(i)                         /*indexOffset*/,
-               static_cast<uint32_t>(m_Scene.Models().at(i).Indices().size())                    /*indexCount*/,
+               indexOffset                                               /*indexOffset*/,
+               static_cast<uint32_t>(model.Indices().size())             /*indexCount*/,
                vk::IndexType::eUint32                                    /*indexType*/,
                nullptr                                                   /*transformData*/,
                0                                                         /*transformOffset*/
@@ -235,18 +276,19 @@ void RayTracer::CreateAccelerationStructures() {
             }                                                         /*aabbs*/
          }                                                            /*geometry*/,
          vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
-      };
-
-      AddBottomLevelAccelerationStructure(geometry);
+      );
+      //vertexOffset += model.Vertices().size() * sizeof(Vertex);
+      indexOffset += model.Indices().size() * sizeof(uint32_t);
    }
 
-   std::vector<Vulkan::GeometryInstance> geometryInstances;
-   std::vector<Material> materials;
+   CreateBottomLevelAccelerationStructures(geometries);
+
    uint32_t i = 0;
+   std::vector<Vulkan::GeometryInstance> geometryInstances;
 
    geometryInstances.reserve(m_Scene.Instances().size());
-   materials.reserve(m_Scene.Instances().size());
    for (const auto& instance : m_Scene.Instances()) {
+      ASSERT(m_BLAS.at(instance.GetModelIndex()).m_Handle, "ERROR: BLAS handle is null.  Have you forgotten to allocate and bind memory?");
       geometryInstances.emplace_back(
          instance.GetTransform(),
          i++                            /*instance index*/,
@@ -255,31 +297,20 @@ void RayTracer::CreateAccelerationStructures() {
          static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable),
          m_BLAS.at(instance.GetModelIndex()).m_Handle
       );
-      materials.emplace_back(instance.GetMaterial());
    };
-
-   // Create Materials buffer
-   {
-      vk::DeviceSize size = materials.size() * sizeof(Material);
-
-      Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-      stagingBuffer.CopyFromHost(0, size, materials.data());
-
-      m_MaterialBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
-      CopyBuffer(stagingBuffer.m_Buffer, m_MaterialBuffer->m_Buffer, 0, 0, size);
-   }
 
    // Each geometry instance instantiates all of the geometries that are in the BLAS that the instance refers to.
    // If you want to instantiate geometries independently of each other, then they need to be in different BLASs
    // Apparently, a general rule is that the fewer BLASs the better. 
    CreateTopLevelAccelerationStructure(geometryInstances);
+
+   BuildAccelerationStructures(geometryInstances);
 }
 
 
 void RayTracer::DestroyAccelerationStructures() {
    DestroyTopLevelAccelerationStructure();
    DestroyBottomLevelAccelerationStructures();
-   m_MaterialBuffer.reset(nullptr);
 }
 
 
