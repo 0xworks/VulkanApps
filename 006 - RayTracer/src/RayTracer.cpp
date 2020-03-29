@@ -7,6 +7,7 @@ using uint = uint32_t;
 #include "Constants.glsl"
 
 #include "GeometryInstance.h"
+#include "Offset.h"
 #include "Sphere.h"
 
 using mat4 = glm::mat4;
@@ -62,7 +63,8 @@ RayTracer::~RayTracer() {
    DestroyUniformBuffers();
    DestroyStorageImages();
    DestroyAccelerationStructures();
-   DestroyMaterialsBuffer();
+   DestroyMaterialBuffer();
+   DestroyOffsetBuffer();
    DestroyIndexBuffer();
    DestroyVertexBuffer();
 }
@@ -99,7 +101,8 @@ void RayTracer::Init() {
    CreateScene();
    CreateVertexBuffer();
    CreateIndexBuffer();
-   CreateMaterialsBuffer();
+   CreateOffsetBuffer();
+   CreateMaterialBuffer();
    CreateAccelerationStructures();
    CreateStorageImages();
    CreateUniformBuffers();
@@ -196,12 +199,8 @@ void RayTracer::CreateIndexBuffer() {
    indices.reserve(indexCount);
 
    // for each model in scene, pack its indices into index buffer
-   uint32_t indexOffset = 0;
-   for(const auto& model : m_Scene.Models()) {
-      for (const auto& index : model.Indices()) {
-         indices.push_back(indexOffset + index);
-      }
-      indexOffset += static_cast<uint32_t>(model.Vertices().size());
+   for (const auto& model : m_Scene.Models()) {
+      indices.insert(indices.end(), model.Indices().begin(), model.Indices().end());
    }
 
    uint32_t count = static_cast<uint32_t>(indices.size());
@@ -221,10 +220,40 @@ void RayTracer::CreateIndexBuffer() {
 }
 
 
-void RayTracer::CreateMaterialsBuffer() {
-   std::vector<Material> materials;
-   uint32_t i = 0;
+void RayTracer::CreateOffsetBuffer() {
+   std::vector<Offset> modelOffsets;
+   std::vector<Offset> instanceOffsets;
+   modelOffsets.reserve(m_Scene.Models().size());
+   uint32_t vertexOffset = 0;
+   uint32_t indexOffset = 0;
+   for (const auto& model : m_Scene.Models()) {
+      modelOffsets.push_back({vertexOffset, indexOffset});
+      vertexOffset += static_cast<uint32_t>(model.Vertices().size());
+      indexOffset += static_cast<uint32_t>(model.Indices().size());
+   }
 
+   instanceOffsets.reserve(m_Scene.Instances().size());
+   for (const auto& instance : m_Scene.Instances()) {
+      instanceOffsets.push_back(modelOffsets[instance.GetModelIndex()]);
+   };
+
+   vk::DeviceSize size = instanceOffsets.size() * sizeof(Offset);
+
+   Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+   stagingBuffer.CopyFromHost(0, size, instanceOffsets.data());
+
+   m_OffsetBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   CopyBuffer(stagingBuffer.m_Buffer, m_OffsetBuffer->m_Buffer, 0, 0, size);
+}
+
+
+void RayTracer::DestroyOffsetBuffer() {
+   m_OffsetBuffer.reset(nullptr);
+}
+
+
+void RayTracer::CreateMaterialBuffer() {
+   std::vector<Material> materials;
    materials.reserve(m_Scene.Instances().size());
    for (const auto& instance : m_Scene.Instances()) {
       materials.emplace_back(instance.GetMaterial());
@@ -240,7 +269,7 @@ void RayTracer::CreateMaterialsBuffer() {
 }
 
 
-void RayTracer::DestroyMaterialsBuffer() {
+void RayTracer::DestroyMaterialBuffer() {
    m_MaterialBuffer.reset(nullptr);
 }
 
@@ -277,7 +306,7 @@ void RayTracer::CreateAccelerationStructures() {
          }                                                            /*geometry*/,
          vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
       );
-      //vertexOffset += model.Vertices().size() * sizeof(Vertex);
+      vertexOffset += model.Vertices().size() * sizeof(Vertex);
       indexOffset += model.Indices().size() * sizeof(uint32_t);
    }
 
@@ -416,6 +445,14 @@ void RayTracer::CreateDescriptorSetLayout() {
       nullptr                                   /*pImmutableSamplers*/
    };
 
+   vk::DescriptorSetLayoutBinding offsetBufferLB = {
+      BINDING_OFFSETBUFFER                      /*binding*/,
+      vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
+      1                                         /*descriptorCount*/,
+      {vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
+      nullptr                                   /*pImmutableSamplers*/
+   };
+
    vk::DescriptorSetLayoutBinding materialBufferLB = {
       BINDING_MATERIALBUFFER                    /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
@@ -431,6 +468,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       uniformBufferLB,
       vertexBufferLB,
       indexBufferLB,
+      offsetBufferLB,
       materialBufferLB
    };
 
@@ -617,13 +655,13 @@ void RayTracer::CreateDescriptorPool() {
       },
       vk::DescriptorPoolSize {
          vk::DescriptorType::eStorageBuffer,
-         static_cast<uint32_t>(3 * m_SwapChainFrameBuffers.size())
+         static_cast<uint32_t>(4 * m_SwapChainFrameBuffers.size()) // 4 storage buffers:  Vertex, Index, Offset, Material
       }
    };
 
    vk::DescriptorPoolCreateInfo descriptorPoolCI = {
       vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet       /*flags*/,
-      static_cast<uint32_t>(3 * m_SwapChainFrameBuffers.size())  /*maxSets*/,
+      static_cast<uint32_t>(4 * m_SwapChainFrameBuffers.size())  /*maxSets*/,
       static_cast<uint32_t>(typeCounts.size())                   /*poolSizeCount*/,
       typeCounts.data()                                          /*pPoolSizes*/
    };
@@ -745,6 +783,22 @@ void RayTracer::CreateDescriptorSets() {
          nullptr                                      /*pTexelBufferView*/
       };
 
+      vk::DescriptorBufferInfo offsetBufferDescriptor = {
+         m_OffsetBuffer->m_Buffer    /*buffer*/,
+         0                           /*offset*/,
+         VK_WHOLE_SIZE               /*range*/
+      };
+      vk::WriteDescriptorSet offsetBufferWrite = {
+         m_DescriptorSets[i]                          /*dstSet*/,
+         BINDING_OFFSETBUFFER                         /*dstBinding*/,
+         0                                            /*dstArrayElement*/,
+         1                                            /*descriptorCount*/,
+         vk::DescriptorType::eStorageBuffer           /*descriptorType*/,
+         nullptr                                      /*pImageInfo*/,
+         &offsetBufferDescriptor                      /*pBufferInfo*/,
+         nullptr                                      /*pTexelBufferView*/
+      };
+
       vk::DescriptorBufferInfo materialBufferDescriptor = {
          m_MaterialBuffer->m_Buffer  /*buffer*/,
          0                           /*offset*/,
@@ -768,6 +822,7 @@ void RayTracer::CreateDescriptorSets() {
          uniformBufferWrite,
          vertexBufferWrite,
          indexBufferWrite,
+         offsetBufferWrite,
          materialBufferWrite
       };
 

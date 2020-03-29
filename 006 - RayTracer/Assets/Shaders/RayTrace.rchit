@@ -4,6 +4,7 @@
 
 #include "Bindings.glsl"
 #include "Material.glsl"
+#include "Offset.glsl"
 #include "Random.glsl"
 #include "RayPayload.glsl"
 #include "UniformBufferObject.glsl"
@@ -11,6 +12,7 @@
 
 layout(set = 0, binding = BINDING_VERTEXBUFFER) readonly buffer VertexArray { float vertices[]; };  // not { Vertex Vertices[]; } because glsl structure padding makes it a bit tricky
 layout(set = 0, binding = BINDING_INDEXBUFFER) readonly buffer IndexArray { uint indices[]; };
+layout(set = 0, binding = BINDING_OFFSETBUFFER) readonly buffer OffsetArray { Offset offsets[]; };
 layout(set = 0, binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
 
 hitAttributeNV vec2 hit;
@@ -82,9 +84,10 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
 
 void main() {
    ivec3 triangle = ivec3(gl_PrimitiveID * 3 + 0, gl_PrimitiveID * 3 + 1, gl_PrimitiveID * 3 + 2);
-   const Vertex v0 = UnpackVertex(indices[triangle.x]);
-   const Vertex v1 = UnpackVertex(indices[triangle.y]);
-   const Vertex v2 = UnpackVertex(indices[triangle.z]);
+   Offset offset = offsets[gl_InstanceID];
+   const Vertex v0 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.x]);
+   const Vertex v1 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.y]);
+   const Vertex v2 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.z]);
 
    const vec3 barycentricCoords = vec3(1.0f - hit.x - hit.y, hit.x, hit.y);
    const vec3 hitPoint = v0.pos * barycentricCoords.x + v1.pos * barycentricCoords.y + v2.pos * barycentricCoords.z;

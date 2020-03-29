@@ -27,8 +27,11 @@ public:
    void CreateIndexBuffer();
    void DestroyIndexBuffer();
 
-   void CreateMaterialsBuffer();
-   void DestroyMaterialsBuffer();
+   void CreateOffsetBuffer();
+   void DestroyOffsetBuffer();
+
+   void CreateMaterialBuffer();
+   void DestroyMaterialBuffer();
 
    void CreateAccelerationStructures();
    void DestroyAccelerationStructures();
@@ -70,6 +73,7 @@ private:
    Scene m_Scene;
    std::unique_ptr<Vulkan::Buffer> m_VertexBuffer;
    std::unique_ptr<Vulkan::IndexBuffer> m_IndexBuffer;
+   std::unique_ptr<Vulkan::Buffer> m_OffsetBuffer;
    std::unique_ptr<Vulkan::Buffer> m_MaterialBuffer;
    std::unique_ptr<Vulkan::Image> m_OutputImage;
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
