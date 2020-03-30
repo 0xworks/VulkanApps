@@ -5,7 +5,7 @@
 
 using uint = uint32_t;
 #include "Constants.glsl"
-
+#include "Cube.h"
 #include "GeometryInstance.h"
 #include "Offset.h"
 #include "Sphere.h"
@@ -118,14 +118,13 @@ void RayTracer::Init() {
 
 void RayTracer::CreateScene() {
 
-   uint32_t sphereModel = m_Scene.AddModel({(m_bindir / "Assets" / "Models" / "sphere.obj").string().c_str()});
-   uint32_t cubeModel = m_Scene.AddModel({(m_bindir / "Assets" / "Models" / "cube.obj").string().c_str()});
+   Sphere::SetModelIndex(m_Scene.AddModel({(m_bindir / "Assets" / "Models" / "sphere.obj").string().c_str()}));
+   Cube::SetModelIndex(m_Scene.AddModel({(m_bindir / "Assets" / "Models" / "cube.obj").string().c_str()}));
 
    // large background sphere...
-   Sphere background = {
-      sphereModel,
+   Cube background = {
       {0.0f, -1000.0f, 0.0f},
-      1000.0f,
+      2000.0f,
       Lambertian({0.5, 0.5, 0.5})
    };
 
@@ -151,15 +150,15 @@ void RayTracer::CreateScene() {
             } else {
                material = Dielectric(1.5f);
             }
-            m_Scene.AddInstance(Sphere(sphereModel, centre, 0.2f, material));
+            m_Scene.AddInstance(Sphere(centre, 0.2f, material));
          }
       }
    }
 
    // the three main spheres...
-   m_Scene.AddInstance(Sphere(sphereModel, {0.0, 1.0, 0.0}, 1.0f, Dielectric(1.5f)));
-   m_Scene.AddInstance(Sphere(cubeModel, {-4.0, 1.0, 0.0}, 1.0f, Lambertian({0.4, 0.2, 0.1})));
-   m_Scene.AddInstance(Sphere(sphereModel, {4.0, 1.0, 0.0}, 1.0f, Metallic({0.7, 0.6, 0.5}, 0.0)));
+   m_Scene.AddInstance(Sphere({0.0, 1.0, 0.0}, 1.0f, Dielectric(1.5f)));
+   m_Scene.AddInstance(Sphere({-4.0, 1.0, 0.0}, 1.0f, Lambertian({0.4f, 0.2f, 0.1f})));
+   m_Scene.AddInstance(Sphere({4.0, 1.0, 0.0}, 1.0f, Metallic({0.7f, 0.6f, 0.5f}, 0.005f)));
 }
 
 

@@ -2,9 +2,9 @@
 
 #include "Instance.h"
 
-class Sphere : public Instance {
+class Cube : public Instance {
 public:
-   Sphere(glm::vec3 centre, float radius, Material material);
+   Cube(glm::vec3 centre, float sideLength, Material material);
 
 public:
    static void SetModelIndex(uint32_t modelIndex);

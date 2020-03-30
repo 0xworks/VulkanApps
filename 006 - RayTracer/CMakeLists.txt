@@ -14,6 +14,8 @@ set(
 
 set(
    src_files
+   "src/Cube.h"
+   "src/Cube.cpp"
    "src/Instance.h"
    "src/Instance.cpp"
    "src/Material.h"
