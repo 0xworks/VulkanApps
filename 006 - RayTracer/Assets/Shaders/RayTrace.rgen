@@ -33,7 +33,7 @@ void main() {
    vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz * constants.lensFocalLength - vec3(offset, 0.0)), 0.0);
 
    vec3 rayColor = vec3(1.0);
-
+   
    for (uint b = 0; b < constants.maxRayBounces; ++b) {
       traceNV(
          world,

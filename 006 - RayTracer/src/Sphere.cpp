@@ -1,9 +1,24 @@
 #include "Sphere.h"
 #include "Core.h"
 
-uint32_t Sphere::sm_modelIndex = ~0;
+uint32_t SphereInstance::sm_modelIndex = ~0;
 
-Sphere::Sphere(glm::vec3 centre, float radius, Material material)
+Sphere::Sphere()
+: Model("Assets/Models/sphere.obj")
+{}
+
+
+bool Sphere::IsTriangles() const {
+   return false;
+}
+
+
+std::array<glm::vec3, 2> Sphere::BoundingBox() const {
+   return {glm::vec3{-1.0f, -1.0f, -1.0f}, glm::vec3{1.0f, 1.0f, 1.0f}};
+}
+
+
+SphereInstance::SphereInstance(glm::vec3 centre, float radius, Material material)
 : Instance {
       sm_modelIndex,
       glm::mat3x4 {
@@ -19,6 +34,6 @@ Sphere::Sphere(glm::vec3 centre, float radius, Material material)
 }
 
 
-void Sphere::SetModelIndex(uint32_t modelIndex) {
+void SphereInstance::SetModelIndex(uint32_t modelIndex) {
    sm_modelIndex = modelIndex;
 }

@@ -7,13 +7,13 @@
 
 class Scene {
 public:
-   uint32_t AddModel(Model model);
-   uint32_t AddInstance(Instance instance);
+   uint32_t AddModel(std::unique_ptr<Model> model);
+   uint32_t AddInstance(std::unique_ptr<Instance> instance);
 
-   const std::vector<Model>& Models() const;
-   const std::vector<Instance>& Instances() const;
+   const std::vector<std::unique_ptr<Model>>& Models() const;
+   const std::vector<std::unique_ptr<Instance>>& Instances() const;
 
 private:
-   std::vector<Model> m_Models;                 // unique models
-   std::vector<Instance> m_Instances;           // instances of models (i.e. tuples of model, transform, texture, material)
+   std::vector<std::unique_ptr<Model>> m_Models;                 // unique models
+   std::vector<std::unique_ptr<Instance>> m_Instances;           // instances of models (i.e. tuples of model, transform, texture, material)
 };

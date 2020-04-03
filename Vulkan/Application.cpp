@@ -1107,11 +1107,11 @@ void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const v
    //
    for (const auto& geometry : geometries) {
       vk::AccelerationStructureInfoNV accelerationStructureInfo = {
-         vk::AccelerationStructureTypeNV::eBottomLevel /*type*/,
-         {}                                            /*flags*/,
-         0                                             /*instanceCount*/,
-         1                                             /*geometryCount*/,
-         &geometry                                     /*pGeometries*/
+         vk::AccelerationStructureTypeNV::eBottomLevel                /*type*/,
+         vk::BuildAccelerationStructureFlagBitsNV::ePreferFastTrace   /*flags*/,
+         0                                                            /*instanceCount*/,
+         1                                                            /*geometryCount*/,
+         &geometry                                                    /*pGeometries*/
       };
       m_BLAS.emplace_back(accelerationStructureInfo);
 
@@ -1180,11 +1180,11 @@ void Application::DestroyBottomLevelAccelerationStructures() {
 
 void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances) {
    m_TLAS.m_AccelerationStructureInfo = {
-      vk::AccelerationStructureTypeNV::eTopLevel /*type*/,
-      {}                                         /*flags*/,
-      geometryInstances.size()                   /*instanceCount*/,
-      0                                          /*geometryCount*/,
-      nullptr                                    /*pGeometries*/
+      vk::AccelerationStructureTypeNV::eTopLevel                   /*type*/,
+      vk::BuildAccelerationStructureFlagBitsNV::ePreferFastTrace   /*flags*/,
+      geometryInstances.size()                                     /*instanceCount*/,
+      0                                                            /*geometryCount*/,
+      nullptr                                                      /*pGeometries*/
    };
 
    m_TLAS.m_AccelerationStructure = m_Device.createAccelerationStructureNV({
@@ -1277,10 +1277,15 @@ void Application::BuildAccelerationStructures(vk::ArrayProxy<const Vulkan::Geome
       vk::DeviceSize scratchOffset = 0;
       uint32_t i = 0;
       for (const auto& blas : m_BLAS) {
+         // each build here has its own section of scratch memory.
+         // so we can queue them all up and do not need a memory barrier between BLAS builds
          cmd.buildAccelerationStructureNV(blas.m_AccelerationStructureInfo, nullptr, 0, false, blas.m_AccelerationStructure, nullptr, scratchBufferBLAS.m_Buffer, scratchOffset);
          scratchOffset += memoryRequirements[i++].memoryRequirements.size;
       }
 
+      // GPU must wait for BLAS build to finish before doing TLAS build
+      // Also, you need to make sure the geometry instances have finished being copied to GPU before doing the TLAS build
+      // but that is already covered because instanceBuffer.CopyFromHost() above blocks until the GPU has done it
       vk::MemoryBarrier memoryBarrier = {
          vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*srcAccesMask*/,
          vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*dstAccessMask*/

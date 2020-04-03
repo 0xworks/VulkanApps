@@ -54,3 +54,12 @@ const std::vector<Vertex>& Model::Vertices() const {
 const std::vector<uint32_t>& Model::Indices() const {
    return m_Indices;
 }
+
+
+bool Model::IsTriangles() const {
+   return true;
+}
+
+std::array<glm::vec3, 2> Model::BoundingBox() const {
+   return {};
+};

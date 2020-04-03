@@ -1,10 +1,24 @@
 #pragma once
 
 #include "Instance.h"
+#include "Model.h"
 
-class Sphere : public Instance {
+#include <filesystem>
+
+class Sphere : public Model {
 public:
-   Sphere(glm::vec3 centre, float radius, Material material);
+   Sphere();
+
+   bool IsTriangles() const override;
+
+   std::array<glm::vec3, 2> BoundingBox() const override;
+
+};
+
+
+class SphereInstance : public Instance {
+public:
+   SphereInstance(glm::vec3 centre, float radius, Material material);
 
 public:
    static void SetModelIndex(uint32_t modelIndex);

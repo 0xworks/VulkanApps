@@ -30,6 +30,12 @@ public:
    void CreateOffsetBuffer();
    void DestroyOffsetBuffer();
 
+   void CreateAABBBuffer();
+   void DestroyAABBBuffer();
+
+   void CreateSphereBuffer();
+   void DestroySphereBuffer();
+
    void CreateMaterialBuffer();
    void DestroyMaterialBuffer();
 
@@ -51,9 +57,6 @@ public:
    void CreatePipeline();
    void DestroyPipeline();
 
-   void CreateShaderBindingTable();
-   void DestroyShaderBindingTable();
-
    void CreateDescriptorPool();
    void DestroyDescriptorPool();
 
@@ -74,6 +77,8 @@ private:
    std::unique_ptr<Vulkan::Buffer> m_VertexBuffer;
    std::unique_ptr<Vulkan::IndexBuffer> m_IndexBuffer;
    std::unique_ptr<Vulkan::Buffer> m_OffsetBuffer;
+   std::unique_ptr<Vulkan::Buffer> m_AABBBuffer;
+   std::unique_ptr<Vulkan::Buffer> m_SphereBuffer;
    std::unique_ptr<Vulkan::Buffer> m_MaterialBuffer;
    std::unique_ptr<Vulkan::Image> m_OutputImage;
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
@@ -84,6 +89,10 @@ private:
    vk::PipelineLayout m_PipelineLayout;
    vk::Pipeline m_Pipeline;
    std::unique_ptr<Vulkan::Buffer> m_ShaderBindingTable;
+   vk::DeviceSize m_RayGenShaderBindingOffset;
+   vk::DeviceSize m_MissShaderBindingOffset;
+   vk::DeviceSize m_HitShadersBindingOffset;
+
    vk::DescriptorPool m_DescriptorPool;
    std::vector<vk::DescriptorSet> m_DescriptorSets;
 

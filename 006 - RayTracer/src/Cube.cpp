@@ -1,10 +1,14 @@
 #include "Cube.h"
 #include "Core.h"
 
+uint32_t CubeInstance::sm_modelIndex = ~0;
 
-uint32_t Cube::sm_modelIndex = ~0;
+Cube::Cube()
+   : Model("Assets/Models/cube.obj") {
+}
 
-Cube::Cube(glm::vec3 centre, float sideLength, Material material)
+
+CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, Material material)
 : Instance {
       sm_modelIndex,
       glm::mat3x4 {
@@ -20,6 +24,6 @@ Cube::Cube(glm::vec3 centre, float sideLength, Material material)
 }
 
 
-void Cube::SetModelIndex(uint32_t modelIndex) {
+void CubeInstance::SetModelIndex(uint32_t modelIndex) {
    sm_modelIndex = modelIndex;
 }

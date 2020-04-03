@@ -39,15 +39,18 @@ set(
    "Assets/Shaders/Offset.glsl"
    "Assets/Shaders/Random.glsl"
    "Assets/Shaders/RayPayload.glsl"
+   "Assets/Shaders/Scatter.glsl"
    "Assets/Shaders/UniformBufferObject.glsl"
    "Assets/Shaders/Vertex.glsl"
 )
 
 set(
    shader_src_files
-   "Assets/Shaders/RayTrace.rchit"
+   "Assets/Shaders/AABBs.rchit"
+   "Assets/Shaders/AABBs.rint"
    "Assets/Shaders/RayTrace.rgen"
    "Assets/Shaders/RayTrace.rmiss"
+   "Assets/Shaders/Triangles.rchit"
 )
 
 set(
