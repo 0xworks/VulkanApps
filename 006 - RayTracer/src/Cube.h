@@ -11,11 +11,11 @@ public:
 
 class CubeInstance : public Instance {
 public:
-   CubeInstance(glm::vec3 centre, float sideLength, Material material);
+   CubeInstance(glm::vec3 centre, float sideLength, float rotateXRadians, float rotateYRadians, float rotateZRadians, Material material);
 
 public:
    static void SetModelIndex(uint32_t modelIndex);
 
 private:
-   static uint32_t sm_modelIndex;
+   static uint32_t sm_ModelIndex;
 };

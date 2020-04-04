@@ -9,10 +9,15 @@ class Sphere : public Model {
 public:
    Sphere();
 
-   bool IsTriangles() const override;
+   bool IsProcedural() const override;
 
-   std::array<glm::vec3, 2> BoundingBox() const override;
+   std::array<glm::vec3, 2> GetBoundingBox() const override;
 
+public:
+   static void SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex);
+
+private:
+   static uint32_t sm_ShaderHitGroupIndex;
 };
 
 
@@ -24,5 +29,5 @@ public:
    static void SetModelIndex(uint32_t modelIndex);
 
 private:
-   static uint32_t sm_modelIndex;
+   static uint32_t sm_ModelIndex;
 };

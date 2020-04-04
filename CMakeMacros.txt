@@ -10,10 +10,10 @@ find_program(Vulkan_GLSLANG_VALIDATOR
 )
 
 # Shader compilation
-macro(compile_shaders shader_files dir_name compiled_shaders)
+macro(compile_shaders shader_src_files shader_header_files dir_name compiled_shaders)
 	set(${compiled_shaders})
 	set(${compiled_shaders} PARENT_SCOPE)
-	foreach(shader ${${shader_files}})
+	foreach(shader ${${shader_src_files}})
 		message("${target_name} SHADER: ${shader}")
 		get_filename_component(file_name ${shader} NAME)
 		get_filename_component(full_path ${shader} ABSOLUTE)
@@ -27,6 +27,7 @@ macro(compile_shaders shader_files dir_name compiled_shaders)
 				OUTPUT ${output_file}
 				COMMAND ${Vulkan_GLSLANG_VALIDATOR} -V ${full_path} -o ${output_file}
 				DEPENDS ${full_path}
+				DEPENDS ${${shader_header_files}}  # this makes all shaders depend on all shader_header_files... but I cant think of a better way
 			)
 		else()
 			add_custom_command(

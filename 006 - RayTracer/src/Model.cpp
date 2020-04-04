@@ -1,7 +1,12 @@
 #include "Model.h"
 
+#include "Core.h"
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+
+
+uint32_t Model::sm_ShaderHitGroupIndex = ~0;
 
 
 Model::Model(const char* filename) {
@@ -46,20 +51,33 @@ Model::Model(const char* filename) {
 }
 
 
-const std::vector<Vertex>& Model::Vertices() const {
+const std::vector<Vertex>& Model::GetVertices() const {
    return m_Vertices;
 }
 
 
-const std::vector<uint32_t>& Model::Indices() const {
+const std::vector<uint32_t>& Model::GetIndices() const {
    return m_Indices;
 }
 
 
-bool Model::IsTriangles() const {
-   return true;
+bool Model::IsProcedural() const {
+   return false;
 }
 
-std::array<glm::vec3, 2> Model::BoundingBox() const {
+
+uint32_t Model::GetShaderHitGroupIndex() const {
+   ASSERT(m_ShaderHitGroupIndex != ~0, "ERROR: shader hit group index not set.  You must set the shader hit group index (via SetShaderHitGroupIndex()).");
+   return m_ShaderHitGroupIndex;
+}
+
+
+std::array<glm::vec3, 2> Model::GetBoundingBox() const {
+   ASSERT(false, "ERROR: GetBoundingBox() called for non-procedural model");
    return {};
 };
+
+
+void Model::SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
+   sm_ShaderHitGroupIndex = shaderHitGroupIndex;
+}

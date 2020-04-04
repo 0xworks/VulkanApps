@@ -7,9 +7,11 @@
 #define MATERIAL_DIELECTRIC 3
 
 struct Material {
-   vec4 albedo; // note vec3 and vec4 both take up 16 bytes in glsl
    uint type;
    float roughness;
    float refractiveIndex;
-   uint pad;   // need to pad rest of structure to size of largest data member (16 bytes)
+   int textureId;
+   vec4 textureParam1;
+   vec4 textureParam2;
+      // note: make sure rest of structure is padded to size of largest data member (here, 16 bytes because textureParma1, and textureParam2 are both 16 bytes)
 };

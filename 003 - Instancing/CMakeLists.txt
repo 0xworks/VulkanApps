@@ -45,7 +45,7 @@ set(
 
 set_source_files_properties(${shader_header_files} PROPERTIES HEADER_FILE_ONLY TRUE)
 
-compile_shaders(shader_src_files Assets/Shaders compiled_shaders)
+compile_shaders(shader_src_files shader_header_files Assets/Shaders compiled_shaders)
 copy_assets(font_files Assets/Fonts copied_fonts)
 copy_assets(model_files Assets/Models copied_models)
 copy_assets(texture_files Assets/Textures copied_textures)

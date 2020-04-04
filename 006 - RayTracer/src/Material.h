@@ -6,21 +6,21 @@
 using vec4 = glm::vec4;
 using uint = uint32_t;
 #include "Material.glsl"
-
+#include "Texture.h"
 
 inline
-Material Lambertian(glm::vec3 albedo) {
-   return Material {glm::vec4{albedo, 1 }, MATERIAL_LAMBERTIAN};
+Material Lambertian(Texture texture) {
+   return Material {MATERIAL_LAMBERTIAN, 0.0, 0.0, texture.id, texture.param1, texture.param2};
 }
 
 
 inline
-Material Metallic(glm::vec3 albedo, float roughness) {
-   return Material {glm::vec4{albedo, 1 }, MATERIAL_METALLIC, roughness};
+Material Metallic(Texture texture, float roughness) {
+   return Material {MATERIAL_METALLIC, roughness, 0.0, texture.id, texture.param1, texture.param2};
 }
 
 
 inline
 Material Dielectric(float refractiveIndex) {
-   return Material {glm::one<vec4>(), MATERIAL_DIELECTRIC, 0.0, refractiveIndex};
+   return Material {MATERIAL_DIELECTRIC, 0.0, refractiveIndex};
 }

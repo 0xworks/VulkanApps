@@ -7,7 +7,7 @@
 layout(set = 0, binding = BINDING_SPHEREBUFFER) readonly buffer SphereArray { vec4 spheres[]; };
 
 
-hitAttributeNV vec4 unused;  // there must be a hitAttributeNV declared, otherwise the shader will not work.
+hitAttributeNV vec4 unused;   // you must declare a hitAttributeNV otherwise the shader does not work properly!
 
 void main()
 {

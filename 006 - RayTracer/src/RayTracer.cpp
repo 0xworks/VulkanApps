@@ -46,9 +46,7 @@ RayTracer::RayTracer(int argc, const char* argv[])
    /*enableValidation=*/false
 #endif
 }
-, m_bindir { argv[0] }
 {
-   m_bindir.remove_filename();
    Init();
 }
 
@@ -120,58 +118,62 @@ void RayTracer::Init() {
 
 void RayTracer::CreateScene() {
 
+   Model::SetShaderHitGroupIndex(eTrianglesHitGroup - eFirstHitGroup);
+   Sphere::SetShaderHitGroupIndex(eSphereHitGroup - eFirstHitGroup);
+
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
    CubeInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Cube>()));
 
-    m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3{0.0f, -1000.0f, 0.0f}, 2000.0f, Lambertian({0.5, 0.5, 0.5})));
- 
-   // small random spheres
-   for (int a = -11; a < 11; a++) {
-      for (int b = -11; b < 11; b++) {
-         float chooseMaterial = RandomFloat();
-         vec3 centre(a + 0.9f * RandomFloat(), 0.2f, b + 0.9f * RandomFloat());
-         if (
-            (glm::length(centre - glm::vec3{-4.0f, 0.2f, 0.0f}) > 0.9f) &&
-            (glm::length(centre - glm::vec3{0.0f, 0.2f, 0.0f}) > 0.9f) &&
-            (glm::length(centre - glm::vec3{4.0f, 0.2f, 0.0f}) > 0.9f)
-         ) {
-            Material material;
-            if (chooseMaterial < 0.8) {
-               // diffuse
-               material = Lambertian({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()});
-            } else if (chooseMaterial < 0.95) {
-               // metal
-               material = Metallic({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}, 0.5f * RandomFloat());
-            } else {
-               material = Dielectric(1.5f);
-            }
-            m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
-         }
-      }
-   }
- 
-    // the three main spheres...
-    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 1.0f, 0.0f}, 1.0f, Dielectric(1.5f)));
-    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-4.0f, 1.0f, 0.0f}, 1.0f, Lambertian({0.4f, 0.2f, 0.1f})));
-    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{4.0f, 1.0f, 0.0f}, 1.0f, Metallic({0.7f, 0.6f, 0.5f}, 0.005f)));
+
+//    m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3 {0.0f, -1000.0f, 0.0f}, 2000.0f, Lambertian(Checker({0.2f, 0.3f, 0.1f}, {0.9f, 0.9f, 0.9f}, 1.0f))));
+//  
+//    // small random spheres
+//    for (int a = -11; a < 11; a++) {
+//       for (int b = -11; b < 11; b++) {
+//          float chooseMaterial = RandomFloat();
+//          vec3 centre(a + 0.9f * RandomFloat(), 0.2f, b + 0.9f * RandomFloat());
+//          if (
+//             (glm::length(centre - glm::vec3{-4.0f, 0.2f, 0.0f}) > 0.9f) &&
+//             (glm::length(centre - glm::vec3{0.0f, 0.2f, 0.0f}) > 0.9f) &&
+//             (glm::length(centre - glm::vec3{4.0f, 0.2f, 0.0f}) > 0.9f)
+//          ) {
+//             Material material;
+//             if (chooseMaterial < 0.8) {
+//                // diffuse
+//                material = Lambertian(FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()}));
+//             } else if (chooseMaterial < 0.95) {
+//                // metal
+//                material = Metallic(FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}), 0.5f * RandomFloat());
+//             } else {
+//                material = Dielectric(1.5f);
+//             }
+//             m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+//          }
+//       }
+//    }
+//  
+//     // the three main spheres...
+//     m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 1.0f, 0.0f}, 1.0f, Dielectric(1.5f)));
+//     m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-4.0f, 1.0f, 0.0f}, 1.0f, Lambertian(FlatColor({0.4f, 0.2f, 0.1f}))));
+//     m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{4.0f, 1.0f, 0.0f}, 1.0f, Metallic(FlatColor({0.7f, 0.6f, 0.5f}), 0.005f)));
 
     //m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3{-2.0f, 0.0f, 0.0f}, 2.0f, Lambertian({0.4f, 0.2f, 0.1f})));
-    //m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3 {-2.0f, 0.0f, 2.0f}, 2.0f, Lambertian({0.7f, 0.6f, 0.1f})));
-    //m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 1.0f}, 1.0f, Metallic({0.7f, 0.6f, 0.5f}, 0.005f)));
+    m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, 1.0f, 90.0f * 3.142f/180.0f, 0.0f, 45.0f*3.142f/180.0f, Lambertian(Checker({0.2f, 0.3f, 0.1f}, {0.9f, 0.9f, 0.9f}, 1.0f))));
+    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 2.0f}, 1.0f, Metallic(Checker({0.2f, 0.3f, 0.1f}, {0.9f, 0.9f, 0.9f}, 1.0f), 0.005f)));
 }
 
 
 void RayTracer::CreateVertexBuffer() {
    std::vector<Vertex> vertices;
    size_t vertexCount = 0;
-   for (const auto& model : m_Scene.Models()) {
-      vertexCount += model->Vertices().size();
+   for (const auto& model : m_Scene.GetModels()) {
+      vertexCount += model->GetVertices().size();
    }
    vertices.reserve(vertexCount);
 
    // for each model in scene, pack its vertices into vertex buffer
-   for (const auto& model : m_Scene.Models()) {
-      vertices.insert(vertices.end(), model->Vertices().begin(), model->Vertices().end());
+   for (const auto& model : m_Scene.GetModels()) {
+      vertices.insert(vertices.end(), model->GetVertices().begin(), model->GetVertices().end());
    }
 
    vk::DeviceSize size = vertices.size() * sizeof(Vertex);
@@ -191,14 +193,14 @@ void RayTracer::DestroyVertexBuffer() {
 void RayTracer::CreateIndexBuffer() {
    std::vector<uint32_t> indices;
    size_t indexCount = 0;
-   for (const auto& model : m_Scene.Models()) {
-      indexCount += model->Indices().size();
+   for (const auto& model : m_Scene.GetModels()) {
+      indexCount += model->GetIndices().size();
    }
    indices.reserve(indexCount);
 
    // for each model in scene, pack its indices into index buffer
-   for (const auto& model : m_Scene.Models()) {
-      indices.insert(indices.end(), model->Indices().begin(), model->Indices().end());
+   for (const auto& model : m_Scene.GetModels()) {
+      indices.insert(indices.end(), model->GetIndices().begin(), model->GetIndices().end());
    }
 
    uint32_t count = static_cast<uint32_t>(indices.size());
@@ -221,17 +223,17 @@ void RayTracer::CreateIndexBuffer() {
 void RayTracer::CreateOffsetBuffer() {
    std::vector<Offset> modelOffsets;
    std::vector<Offset> instanceOffsets;
-   modelOffsets.reserve(m_Scene.Models().size());
+   modelOffsets.reserve(m_Scene.GetModels().size());
    uint32_t vertexOffset = 0;
    uint32_t indexOffset = 0;
-   for (const auto& model : m_Scene.Models()) {
+   for (const auto& model : m_Scene.GetModels()) {
       modelOffsets.push_back({vertexOffset, indexOffset});
-      vertexOffset += static_cast<uint32_t>(model->Vertices().size());
-      indexOffset += static_cast<uint32_t>(model->Indices().size());
+      vertexOffset += static_cast<uint32_t>(model->GetVertices().size());
+      indexOffset += static_cast<uint32_t>(model->GetIndices().size());
    }
 
-   instanceOffsets.reserve(m_Scene.Instances().size());
-   for (const auto& instance : m_Scene.Instances()) {
+   instanceOffsets.reserve(m_Scene.GetInstances().size());
+   for (const auto& instance : m_Scene.GetInstances()) {
       instanceOffsets.push_back(modelOffsets[instance->GetModelIndex()]);
    };
 
@@ -252,20 +254,22 @@ void RayTracer::DestroyOffsetBuffer() {
 
 void RayTracer::CreateAABBBuffer() {
    std::vector<std::array<glm::vec3, 2>> aabbs;
-   aabbs.reserve(m_Scene.Models().size());
-   for (const auto& model : m_Scene.Models()) {
-      //
-      // create an AABB for the model
-      aabbs.emplace_back(model->BoundingBox());
+   aabbs.reserve(m_Scene.GetModels().size());
+   for (const auto& model : m_Scene.GetModels()) {
+      if (model->IsProcedural()) {
+         aabbs.emplace_back(model->GetBoundingBox());
+      }
    }
 
    vk::DeviceSize size = aabbs.size() * sizeof(std::array<glm::vec3, 2>);
 
-   Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-   stagingBuffer.CopyFromHost(0, size, aabbs.data());
+   if (size > 0) {
+      Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+      stagingBuffer.CopyFromHost(0, size, aabbs.data());
 
-   m_AABBBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
-   CopyBuffer(stagingBuffer.m_Buffer, m_AABBBuffer->m_Buffer, 0, 0, size);
+      m_AABBBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+      CopyBuffer(stagingBuffer.m_Buffer, m_AABBBuffer->m_Buffer, 0, 0, size);
+   }
 }
 
 
@@ -276,8 +280,8 @@ void RayTracer::DestroyAABBBuffer() {
 
 void RayTracer::CreateMaterialBuffer() {
    std::vector<Material> materials;
-   materials.reserve(m_Scene.Instances().size());
-   for (const auto& instance : m_Scene.Instances()) {
+   materials.reserve(m_Scene.GetInstances().size());
+   for (const auto& instance : m_Scene.GetInstances()) {
       materials.emplace_back(instance->GetMaterial());
    };
 
@@ -298,8 +302,8 @@ void RayTracer::DestroyMaterialBuffer() {
 
 void RayTracer::CreateSphereBuffer() {
    std::vector<glm::vec4> spheres;
-   spheres.reserve(m_Scene.Instances().size());
-   for (const auto& instance : m_Scene.Instances()) {
+   spheres.reserve(m_Scene.GetInstances().size());
+   for (const auto& instance : m_Scene.GetInstances()) {
       // the sphere radius is (0,0)th element of its transform
       // the sphere centre is last column of transform.
       const glm::mat3x4 transform = instance->GetTransform();
@@ -327,31 +331,11 @@ void RayTracer::CreateAccelerationStructures() {
    vk::DeviceSize aabbOffset = 0;
    std::vector<vk::GeometryNV> geometries;
    
-   geometries.reserve(m_Scene.Models().size());
-   for (const auto& model : m_Scene.Models()) {
+   geometries.reserve(m_Scene.GetModels().size());
+   for (const auto& model : m_Scene.GetModels()) {
 
       geometries.emplace_back(
-         model->IsTriangles()?
-         vk::GeometryNV {
-            vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
-            vk::GeometryDataNV {
-               vk::GeometryTrianglesNV {
-                  m_VertexBuffer->m_Buffer                                     /*vertexData*/,
-                  vertexOffset                                                 /*vertexOffset*/,
-                  static_cast<uint32_t>(model->Vertices().size())               /*vertexCount*/,
-                  static_cast<vk::DeviceSize>(sizeof(Vertex))                  /*vertexStride*/,
-                  vk::Format::eR32G32B32Sfloat                                 /*vertexFormat*/,
-                  m_IndexBuffer->m_Buffer                                      /*indexData*/,
-                  indexOffset                                                  /*indexOffset*/,
-                  static_cast<uint32_t>(model->Indices().size())                /*indexCount*/,
-                  vk::IndexType::eUint32                                       /*indexType*/,
-                  nullptr                                                      /*transformData*/,
-                  0                                                            /*transformOffset*/
-               }                                                            /*triangles*/
-            }                                                            /*geometry*/,
-            vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
-         }
-         :
+         model->IsProcedural()?
          vk::GeometryNV {
             vk::GeometryTypeNV::eAabbs                               /*geometryType*/,
             vk::GeometryDataNV {
@@ -365,10 +349,32 @@ void RayTracer::CreateAccelerationStructures() {
             }                                                            /*geometry*/,
             vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
          }
+         :
+         vk::GeometryNV {
+            vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
+            vk::GeometryDataNV {
+               vk::GeometryTrianglesNV {
+                  m_VertexBuffer->m_Buffer                                     /*vertexData*/,
+                  vertexOffset                                                 /*vertexOffset*/,
+                  static_cast<uint32_t>(model->GetVertices().size())               /*vertexCount*/,
+                  static_cast<vk::DeviceSize>(sizeof(Vertex))                  /*vertexStride*/,
+                  vk::Format::eR32G32B32Sfloat                                 /*vertexFormat*/,
+                  m_IndexBuffer->m_Buffer                                      /*indexData*/,
+                  indexOffset                                                  /*indexOffset*/,
+                  static_cast<uint32_t>(model->GetIndices().size())                /*indexCount*/,
+                  vk::IndexType::eUint32                                       /*indexType*/,
+                  nullptr                                                      /*transformData*/,
+                  0                                                            /*transformOffset*/
+               }                                                            /*triangles*/
+            }                                                            /*geometry*/,
+            vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
+         }
       );
-      vertexOffset += model->Vertices().size() * sizeof(Vertex);
-      indexOffset += model->Indices().size() * sizeof(uint32_t);
-      aabbOffset += 2 * sizeof(glm::vec3);
+      vertexOffset += model->GetVertices().size() * sizeof(Vertex);
+      indexOffset += model->GetIndices().size() * sizeof(uint32_t);
+      if (model->IsProcedural()) {
+         aabbOffset += 2 * sizeof(glm::vec3);
+      }
    }
 
    CreateBottomLevelAccelerationStructures(geometries);
@@ -376,14 +382,14 @@ void RayTracer::CreateAccelerationStructures() {
    uint32_t i = 0;
    std::vector<Vulkan::GeometryInstance> geometryInstances;
 
-   geometryInstances.reserve(m_Scene.Instances().size());
-   for (const auto& instance : m_Scene.Instances()) {
+   geometryInstances.reserve(m_Scene.GetInstances().size());
+   for (const auto& instance : m_Scene.GetInstances()) {
       ASSERT(m_BLAS.at(instance->GetModelIndex()).m_Handle, "ERROR: BLAS handle is null.  Have you forgotten to allocate and bind memory?");
       geometryInstances.emplace_back(
          instance->GetTransform(),
          i++                                                                           /*instance index*/,
          0xff                                                                          /*visibility mask*/,
-         m_Scene.Models().at(instance->GetModelIndex())->IsTriangles()? 0 : 1          /*hit group index*/,
+         m_Scene.GetModels().at(instance->GetModelIndex())->GetShaderHitGroupIndex()   /*hit group index*/,
          static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable)   /*instance flags*/,
          m_BLAS.at(instance->GetModelIndex()).m_Handle                                 /*acceleration structure handle*/
       );
@@ -595,8 +601,8 @@ void RayTracer::CreatePipeline() {
       eRayGen,
       eMiss,
       eTrianglesClosestHit,
-      eAABBsClosestHit,
-      eAABBsIntersection,
+      eSphereClosestHit,
+      eSphereIntersection,
 
       eNumShaders
    };
@@ -627,34 +633,25 @@ void RayTracer::CreatePipeline() {
       nullptr                                                                      /*pSpecializationInfo*/
    };
 
-   shaderStages[eAABBsClosestHit] = vk::PipelineShaderStageCreateInfo {
+   shaderStages[eSphereClosestHit] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
       vk::ShaderStageFlagBits::eClosestHitNV                                       /*stage*/,
-      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/AABBs.rchit.spv"))       /*module*/,
+      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Sphere.rchit.spv"))      /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
    };
 
-   shaderStages[eAABBsIntersection] = vk::PipelineShaderStageCreateInfo {
+   shaderStages[eSphereIntersection] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
       vk::ShaderStageFlagBits::eIntersectionNV                                     /*stage*/,
-      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/AABBs.rint.spv"))        /*module*/,
+      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Sphere.rint.spv"))       /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
-   };
-
-   enum {
-      eRayGenShaderGroup,
-      eMissShaderGroup,
-      eHitGroup0,
-      eHitGroup1,
-
-      eNumShaderGroups
    };
 
    std::array<vk::RayTracingShaderGroupCreateInfoNV, eNumShaderGroups> groups;
 
-   groups[eRayGenShaderGroup] = vk::RayTracingShaderGroupCreateInfoNV {
+   groups[eRayGenGroup] = vk::RayTracingShaderGroupCreateInfoNV {
       vk::RayTracingShaderGroupTypeNV::eGeneral /*type*/,
       eRayGen                                   /*generalShader*/,
       VK_SHADER_UNUSED_NV                       /*closestHitShader*/,
@@ -662,7 +659,7 @@ void RayTracer::CreatePipeline() {
       VK_SHADER_UNUSED_NV                       /*intersectionShader*/
    };
 
-   groups[eMissShaderGroup] = vk::RayTracingShaderGroupCreateInfoNV {
+   groups[eMissGroup] = vk::RayTracingShaderGroupCreateInfoNV {
       vk::RayTracingShaderGroupTypeNV::eGeneral /*type*/,
       eMiss                                     /*generalShader*/,
       VK_SHADER_UNUSED_NV                       /*closestHitShader*/,
@@ -670,7 +667,7 @@ void RayTracer::CreatePipeline() {
       VK_SHADER_UNUSED_NV                       /*intersectionShader*/
    };
 
-   groups[eHitGroup0] = vk::RayTracingShaderGroupCreateInfoNV {
+   groups[eTrianglesHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
       vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup /*type*/,
       VK_SHADER_UNUSED_NV                       /*generalShader*/,
       eTrianglesClosestHit                      /*closestHitShader*/,
@@ -678,12 +675,12 @@ void RayTracer::CreatePipeline() {
       VK_SHADER_UNUSED_NV                       /*intersectionShader*/
    };
 
-   groups[eHitGroup1] = vk::RayTracingShaderGroupCreateInfoNV {
+   groups[eSphereHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
       vk::RayTracingShaderGroupTypeNV::eProceduralHitGroup /*type*/,
       VK_SHADER_UNUSED_NV                       /*generalShader*/,
-      eAABBsClosestHit                          /*closestHitShader*/,
+      eSphereClosestHit                          /*closestHitShader*/,
       VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      eAABBsIntersection                        /*intersectionShader*/
+      eSphereIntersection                        /*intersectionShader*/
    };
 
    vk::RayTracingPipelineCreateInfoNV pipelineCI = {
@@ -706,7 +703,7 @@ void RayTracer::CreatePipeline() {
    }
 
    // Create buffer for the shader binding table
-   const vk::DeviceSize size = m_RayTracingProperties.shaderGroupHandleSize * eNumShaders;
+   const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaders;
 
    std::vector<uint8_t> shaderHandleStorage;
    shaderHandleStorage.resize(size);
@@ -715,9 +712,6 @@ void RayTracer::CreatePipeline() {
    m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
    m_ShaderBindingTable->CopyFromHost(0, size, shaderHandleStorage.data());
 
-   m_RayGenShaderBindingOffset = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eRayGenShaderGroup;
-   m_MissShaderBindingOffset = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eMissShaderGroup;
-   m_HitShadersBindingOffset = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eHitGroup0;
 }
 
 
@@ -751,7 +745,7 @@ void RayTracer::CreateDescriptorPool() {
 
    vk::DescriptorPoolCreateInfo descriptorPoolCI = {
       vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet       /*flags*/,
-      static_cast<uint32_t>(54 * m_SwapChainFrameBuffers.size())  /*maxSets*/,
+      static_cast<uint32_t>(54 * m_SwapChainFrameBuffers.size()) /*maxSets*/,
       static_cast<uint32_t>(typeCounts.size())                   /*poolSizeCount*/,
       typeCounts.data()                                          /*pPoolSizes*/
    };
@@ -983,9 +977,9 @@ void RayTracer::RecordCommandBuffers() {
       commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
 
       commandBuffer.traceRaysNV(
-         m_ShaderBindingTable->m_Buffer, m_RayGenShaderBindingOffset,
-         m_ShaderBindingTable->m_Buffer, m_MissShaderBindingOffset, m_RayTracingProperties.shaderGroupHandleSize,
-         m_ShaderBindingTable->m_Buffer, m_HitShadersBindingOffset, m_RayTracingProperties.shaderGroupHandleSize,
+         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eRayGenGroup,
+         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eMissGroup, m_RayTracingProperties.shaderGroupHandleSize,
+         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eFirstHitGroup, m_RayTracingProperties.shaderGroupHandleSize,
          nullptr, 0, 0,
          m_Extent.width, m_Extent.height, 1
       );

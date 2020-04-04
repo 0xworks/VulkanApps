@@ -8,9 +8,9 @@
 #include "UniformBufferObject.glsl"
 #include "Vertex.glsl"
 
-layout(set = 0, binding = BINDING_VERTEXBUFFER) readonly buffer VertexArray { float vertices[]; };  // not { Vertex Vertices[]; } because glsl structure padding makes it a bit tricky
-layout(set = 0, binding = BINDING_INDEXBUFFER) readonly buffer IndexArray { uint indices[]; };
-layout(set = 0, binding = BINDING_OFFSETBUFFER) readonly buffer OffsetArray { Offset offsets[]; };
+layout(binding = BINDING_VERTEXBUFFER) readonly buffer VertexArray { float vertices[]; };  // not { Vertex Vertices[]; } because glsl structure padding makes it a bit tricky
+layout(binding = BINDING_INDEXBUFFER) readonly buffer IndexArray { uint indices[]; };
+layout(binding = BINDING_OFFSETBUFFER) readonly buffer OffsetArray { Offset offsets[]; };
 
 hitAttributeNV vec2 hit;
 rayPayloadInNV RayPayload ray;
@@ -35,9 +35,13 @@ void main() {
    const Vertex v1 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.y]);
    const Vertex v2 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.z]);
 
-   const vec3 barycentricCoords = vec3(1.0f - hit.x - hit.y, hit.x, hit.y);
-   const vec3 hitPoint = v0.pos * barycentricCoords.x + v1.pos * barycentricCoords.y + v2.pos * barycentricCoords.z;
-   const vec3 normal = normalize(v0.normal * barycentricCoords.x + v1.normal * barycentricCoords.y + v2.normal * barycentricCoords.z);
+   const vec3 barycentric = vec3(1.0f - hit.x - hit.y, hit.x, hit.y);
 
-   ray = Scatter(gl_WorldRayDirectionNV, hitPoint, normal, gl_InstanceCustomIndexNV, ray.randomSeed);
+   // in model coordinates - how to convert to world coordinates?
+   const vec3 hitPoint = v0.pos * barycentric.x + v1.pos * barycentric.y + v2.pos * barycentric.z;
+   const vec3 normal = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
+
+   const vec2 texCoord = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
+
+   ray = Scatter(gl_WorldRayDirectionNV, hitPoint, normal, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
 }

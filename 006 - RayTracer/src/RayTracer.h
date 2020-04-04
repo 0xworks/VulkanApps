@@ -72,7 +72,6 @@ public:
    virtual void OnWindowResized() override;
 
 private:
-   std::filesystem::path m_bindir;
    Scene m_Scene;
    std::unique_ptr<Vulkan::Buffer> m_VertexBuffer;
    std::unique_ptr<Vulkan::IndexBuffer> m_IndexBuffer;
@@ -88,11 +87,20 @@ private:
    vk::DescriptorSetLayout m_DescriptorSetLayout;
    vk::PipelineLayout m_PipelineLayout;
    vk::Pipeline m_Pipeline;
-   std::unique_ptr<Vulkan::Buffer> m_ShaderBindingTable;
-   vk::DeviceSize m_RayGenShaderBindingOffset;
-   vk::DeviceSize m_MissShaderBindingOffset;
-   vk::DeviceSize m_HitShadersBindingOffset;
+   
+   enum EShaderHitGroup {
+      eRayGenGroup,
+      eMissGroup,
+      eFirstHitGroup,
+      eTrianglesHitGroup = eFirstHitGroup,
+      eSphereHitGroup,
 
+      eNumShaderGroups
+   };
+   std::unique_ptr<Vulkan::Buffer> m_ShaderBindingTable;
+
+   const uint32_t m_TrianglesShaderHitGroupIndex = 0;
+   const uint32_t m_SphereShaderHitGroupIndex = 1;
    vk::DescriptorPool m_DescriptorPool;
    std::vector<vk::DescriptorSet> m_DescriptorSets;
 

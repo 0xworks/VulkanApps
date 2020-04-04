@@ -14,11 +14,11 @@ Scene::AddInstance(std::unique_ptr<Instance> instance) {
 }
 
 
-const std::vector<std::unique_ptr<Model>>& Scene::Models() const {
+const std::vector<std::unique_ptr<Model>>& Scene::GetModels() const {
    return m_Models;
 }
 
 
-const std::vector<std::unique_ptr<Instance>>& Scene::Instances() const {
+const std::vector<std::unique_ptr<Instance>>& Scene::GetInstances() const {
    return m_Instances;
 }
