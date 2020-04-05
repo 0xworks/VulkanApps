@@ -1,9 +1,8 @@
 #include "Instance.h"
 
-Instance::Instance(uint32_t modelIndex, glm::mat3x4 transform, uint32_t textureIndex, Material material)
+Instance::Instance(uint32_t modelIndex, glm::mat3x4 transform, Material material)
 : m_ModelIndex(modelIndex)
 , m_Transform(std::move(transform))
-, m_TextureIndex(textureIndex)
 , m_Material(std::move(material))
 {}
 

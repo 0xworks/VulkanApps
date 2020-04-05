@@ -5,13 +5,11 @@ uint32_t Sphere::sm_ShaderHitGroupIndex = ~0;
 uint32_t SphereInstance::sm_ModelIndex = ~0;
 
 
-Sphere::Sphere()
-: Model("Assets/Models/sphere.obj")
-{}
+Sphere::Sphere() : Model("Assets/Models/sphere.obj", Sphere::sm_ShaderHitGroupIndex) {}
 
 
 bool Sphere::IsProcedural() const {
-   return false;
+   return true;
 }
 
 
@@ -33,7 +31,6 @@ SphereInstance::SphereInstance(glm::vec3 centre, float radius, Material material
          {0.0f, radius, 0.0f, centre.y},
          {0.0f, 0.0f, radius, centre.z},
       },
-      0,
       std::move(material)
    }
 {

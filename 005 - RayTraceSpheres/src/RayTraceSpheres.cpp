@@ -217,35 +217,37 @@ void RayTraceSpheres::CreateScene() {
 
    // Could create multiple geometries here (on same vertex/index buffer) by specifying the offsets and counts.
    // You can also instantiate the same geometry more than once (using the transformData and transformOffset)
-   std::array<vk::GeometryNV, 1> geometry = {
-      vk::GeometryNV {
-         vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
-         {
+   std::vector<std::vector<vk::GeometryNV>> geometryGroups = {
+      {
+         vk::GeometryNV {
+            vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
             {
-               m_VertexBuffer->m_Buffer                                  /*vertexData*/,
-               0                                                         /*vertexOffset*/,
-               static_cast<uint32_t>(vertices.size())                    /*vertexCount*/,
-               static_cast<vk::DeviceSize>(sizeof(Vertex))               /*vertexStride*/,
-               vk::Format::eR32G32B32Sfloat                              /*vertexFormat*/,
-               m_IndexBuffer->m_Buffer                                   /*indexData*/,
-               0                                                         /*indexOffset*/,
-               m_IndexBuffer->m_Count                                    /*indexCount*/,
-               vk::IndexType::eUint32                                    /*indexType*/,
-               m_TransformBuffer ? m_TransformBuffer->m_Buffer : nullptr  /*transformData*/,
-               0                                                         /*transformOffset*/
-            }                                                         /*triangles*/,
-            {
-               nullptr                                                   /*aabbData*/,
-               0                                                         /*numAABBs*/,
-               0                                                         /*stride*/,
-               0                                                         /*offset*/
-            }                                                         /*aabbs*/
-         }                                                            /*geometry*/,
-         vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
+               {
+                  m_VertexBuffer->m_Buffer                                  /*vertexData*/,
+                  0                                                         /*vertexOffset*/,
+                  static_cast<uint32_t>(vertices.size())                    /*vertexCount*/,
+                  static_cast<vk::DeviceSize>(sizeof(Vertex))               /*vertexStride*/,
+                  vk::Format::eR32G32B32Sfloat                              /*vertexFormat*/,
+                  m_IndexBuffer->m_Buffer                                   /*indexData*/,
+                  0                                                         /*indexOffset*/,
+                  m_IndexBuffer->m_Count                                    /*indexCount*/,
+                  vk::IndexType::eUint32                                    /*indexType*/,
+                  m_TransformBuffer ? m_TransformBuffer->m_Buffer : nullptr  /*transformData*/,
+                  0                                                         /*transformOffset*/
+               }                                                         /*triangles*/,
+               {
+                  nullptr                                                   /*aabbData*/,
+                  0                                                         /*numAABBs*/,
+                  0                                                         /*stride*/,
+                  0                                                         /*offset*/
+               }                                                         /*aabbs*/
+            }                                                            /*geometry*/,
+            vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
+         }
       }
    };
 
-   CreateBottomLevelAccelerationStructures(geometry);
+   CreateBottomLevelAccelerationStructures(geometryGroups);
 
    std::vector<Vulkan::GeometryInstance> geometryInstances;
    std::vector<Material> materials;

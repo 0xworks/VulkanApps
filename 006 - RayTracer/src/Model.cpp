@@ -9,7 +9,9 @@
 uint32_t Model::sm_ShaderHitGroupIndex = ~0;
 
 
-Model::Model(const char* filename) {
+Model::Model(const char* filename, uint32_t shaderHitGroupIndex)
+: m_ShaderHitGroupIndex(shaderHitGroupIndex)
+{
    tinyobj::attrib_t attrib;
    std::vector<tinyobj::shape_t> shapes;
    std::vector<tinyobj::material_t> materials;

@@ -124,42 +124,104 @@ void RayTracer::CreateScene() {
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
    CubeInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Cube>()));
 
+   // HACK:
+   // set this to control which scene is generated
+   enum class EScene {
+      eRayTracingInOneWeekend,
+      eSphereCubeRotationTest
+   };
+   EScene scene = EScene::eRayTracingInOneWeekend;
 
-//    m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3 {0.0f, -1000.0f, 0.0f}, 2000.0f, Lambertian(Checker({0.2f, 0.3f, 0.1f}, {0.9f, 0.9f, 0.9f}, 1.0f))));
-//  
-//    // small random spheres
-//    for (int a = -11; a < 11; a++) {
-//       for (int b = -11; b < 11; b++) {
-//          float chooseMaterial = RandomFloat();
-//          vec3 centre(a + 0.9f * RandomFloat(), 0.2f, b + 0.9f * RandomFloat());
-//          if (
-//             (glm::length(centre - glm::vec3{-4.0f, 0.2f, 0.0f}) > 0.9f) &&
-//             (glm::length(centre - glm::vec3{0.0f, 0.2f, 0.0f}) > 0.9f) &&
-//             (glm::length(centre - glm::vec3{4.0f, 0.2f, 0.0f}) > 0.9f)
-//          ) {
-//             Material material;
-//             if (chooseMaterial < 0.8) {
-//                // diffuse
-//                material = Lambertian(FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()}));
-//             } else if (chooseMaterial < 0.95) {
-//                // metal
-//                material = Metallic(FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}), 0.5f * RandomFloat());
-//             } else {
-//                material = Dielectric(1.5f);
-//             }
-//             m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
-//          }
-//       }
-//    }
-//  
-//     // the three main spheres...
-//     m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 1.0f, 0.0f}, 1.0f, Dielectric(1.5f)));
-//     m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-4.0f, 1.0f, 0.0f}, 1.0f, Lambertian(FlatColor({0.4f, 0.2f, 0.1f}))));
-//     m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{4.0f, 1.0f, 0.0f}, 1.0f, Metallic(FlatColor({0.7f, 0.6f, 0.5f}), 0.005f)));
+   switch (scene) {
+      case EScene::eRayTracingInOneWeekend:
+         m_Scene.AddInstance(std::make_unique<CubeInstance>(
+            glm::vec3{0.0f, -1000.0f, 0.0f}    /*centre*/,
+            2000.0f                            /*side length*/,
+            glm::vec3{0.0f}                    /*rotation*/,
+            Lambertian(                        /*material*/
+               FlatColor({0.5f, 0.5f, 0.5f})      /*texture*/
+            )
+         ));
 
-    //m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3{-2.0f, 0.0f, 0.0f}, 2.0f, Lambertian({0.4f, 0.2f, 0.1f})));
-    m_Scene.AddInstance(std::make_unique<CubeInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, 1.0f, 90.0f * 3.142f/180.0f, 0.0f, 45.0f*3.142f/180.0f, Lambertian(Checker({0.2f, 0.3f, 0.1f}, {0.9f, 0.9f, 0.9f}, 1.0f))));
-    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 2.0f}, 1.0f, Metallic(Checker({0.2f, 0.3f, 0.1f}, {0.9f, 0.9f, 0.9f}, 1.0f), 0.005f)));
+          // small random spheres
+          for (int a = -11; a < 11; a++) {
+             for (int b = -11; b < 11; b++) {
+                float chooseMaterial = RandomFloat();
+                vec3 centre(a + 0.9f * RandomFloat(), 0.2f, b + 0.9f * RandomFloat());
+                if (
+                   (glm::length(centre - glm::vec3{-4.0f, 0.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3{0.0f, 0.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3{4.0f, 0.2f, 0.0f}) > 0.9f)
+                   ) {
+                   Material material;
+                   if (chooseMaterial < 0.8) {
+                      // diffuse
+                      material = Lambertian(
+                         FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+                      );
+                   } else if (chooseMaterial < 0.95) {
+                      // metal
+                      material = Metallic(
+                         FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                         0.5f * RandomFloat()
+                      );
+                   } else {
+                      material = Dielectric(1.5f);
+                   }
+                   m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+                }
+             }
+          }
+ 
+          // the three main spheres...
+          m_Scene.AddInstance(std::make_unique<SphereInstance>(
+             glm::vec3{0.0f, 1.0f, 0.0f}   /*centre*/,
+             1.0f                          /*radius*/,
+             Dielectric(1.5f)              /*material*/
+          ));
+          m_Scene.AddInstance(std::make_unique<SphereInstance>(
+             glm::vec3{-4.0f, 1.0f, 0.0f}     /*centre*/,
+             1.0f                             /*radius*/,
+             Lambertian(                      /*material*/
+                FlatColor({0.4f, 0.2f, 0.1f})    /*texture*/
+             )
+          ));
+          m_Scene.AddInstance(std::make_unique<SphereInstance>(
+             glm::vec3{4.0f, 1.0f, 0.0f}       /*centre*/,
+             1.0f                              /*radius*/,
+             Metallic(                         /*material*/
+                FlatColor({0.7f, 0.6f, 0.5f}),    /*texture*/
+                0.005f                            /*roughness*/
+             )
+          ));
+          break;
+
+      case EScene::eSphereCubeRotationTest:
+         //
+         // A sphere and a cube, shaded according to their normals.
+         // Note that cube faces should be shaded consistently with the sphere.
+         // (e.g. cube facing forward should be shaded same color as the point on the sphere that faces forward)
+         m_Scene.AddInstance(std::make_unique<CubeInstance>(
+            glm::vec3{0.0f, 0.0f, 0.0f}                                                 /*centre*/,
+            1.0f                                                                        /*sideLength*/,
+            glm::vec3 {glm::radians(0.0f), glm::radians(90.0f), glm::radians(45.0f)}    /*rotation*/,
+            FlatColor(                                                                  /*material*/
+               Normals()                                                                /*texture*/
+            )
+         ));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3{0.0f, 0.0f, 2.0f}                                        /*centre*/,
+            1.0f                                                               /*sideLength*/,
+            FlatColor(                                                         /*material*/
+               Normals()                                                       /*texture*/
+            )                                                                  
+         ));
+         break;
+
+      default:
+         // empty scene.  nothing to see here.
+         break;
+   }
 }
 
 
@@ -303,6 +365,9 @@ void RayTracer::DestroyMaterialBuffer() {
 void RayTracer::CreateSphereBuffer() {
    std::vector<glm::vec4> spheres;
    spheres.reserve(m_Scene.GetInstances().size());
+   
+   // we create a "sphere" for every instance, even if it isnt a sphere.
+   // this makes it easier to index into the sphere buffer in the shaders
    for (const auto& instance : m_Scene.GetInstances()) {
       // the sphere radius is (0,0)th element of its transform
       // the sphere centre is last column of transform.
@@ -329,13 +394,14 @@ void RayTracer::CreateAccelerationStructures() {
    vk::DeviceSize vertexOffset = 0;
    vk::DeviceSize indexOffset = 0;
    vk::DeviceSize aabbOffset = 0;
-   std::vector<vk::GeometryNV> geometries;
-   
-   geometries.reserve(m_Scene.GetModels().size());
-   for (const auto& model : m_Scene.GetModels()) {
+   std::vector<std::vector<vk::GeometryNV>> geometryGroups;
 
+   geometryGroups.reserve(m_Scene.GetModels().size());
+   for (const auto& model : m_Scene.GetModels()) {
+      std::vector<vk::GeometryNV> geometries;
+      geometries.reserve(1);
       geometries.emplace_back(
-         model->IsProcedural()?
+         model->IsProcedural() ?
          vk::GeometryNV {
             vk::GeometryTypeNV::eAabbs                               /*geometryType*/,
             vk::GeometryDataNV {
@@ -370,6 +436,7 @@ void RayTracer::CreateAccelerationStructures() {
             vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
          }
       );
+      geometryGroups.emplace_back(std::move(geometries));
       vertexOffset += model->GetVertices().size() * sizeof(Vertex);
       indexOffset += model->GetIndices().size() * sizeof(uint32_t);
       if (model->IsProcedural()) {
@@ -377,7 +444,7 @@ void RayTracer::CreateAccelerationStructures() {
       }
    }
 
-   CreateBottomLevelAccelerationStructures(geometries);
+   CreateBottomLevelAccelerationStructures(geometryGroups);
 
    uint32_t i = 0;
    std::vector<Vulkan::GeometryInstance> geometryInstances;

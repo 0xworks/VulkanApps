@@ -19,7 +19,6 @@ public:
    virtual void Init() override;
 
    void CreateScene();
-   void DestroyScene();
 
    void CreateVertexBuffer();
    void DestroyVertexBuffer();

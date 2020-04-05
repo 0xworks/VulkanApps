@@ -4,7 +4,7 @@
 
 class Instance {
 public:
-   Instance(uint32_t modelIndex, glm::mat3x4 transform, uint32_t textureIndex, Material material);
+   Instance(uint32_t modelIndex, glm::mat3x4 transform, Material material);
 
    uint32_t GetModelIndex() const;
 
@@ -15,6 +15,5 @@ public:
 private:
    uint32_t m_ModelIndex;
    glm::mat3x4 m_Transform;
-   uint32_t m_TextureIndex;
    Material m_Material;
 };

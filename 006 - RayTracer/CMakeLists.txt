@@ -41,6 +41,7 @@ set(
    "Assets/Shaders/Random.glsl"
    "Assets/Shaders/RayPayload.glsl"
    "Assets/Shaders/Scatter.glsl"
+   "Assets/Shaders/Texture.glsl"
    "Assets/Shaders/UniformBufferObject.glsl"
    "Assets/Shaders/Vertex.glsl"
 )

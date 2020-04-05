@@ -1099,19 +1099,19 @@ void Application::GenerateMIPMaps(vk::Image image, const vk::Format format, cons
 }
 
 
-void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const vk::GeometryNV> geometries) {
+void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const std::vector<vk::GeometryNV>> geometryGroups) {
    //
-   // one BLAS per geometry (might not be quite what client wants, but Too Bad) 
+   // one BLAS per vector of geometries in geometryGroups
    //
    // We create all of the BLAS, and then allocate one buffer for all of them (each one is offset into buffer)
    //
-   for (const auto& geometry : geometries) {
+   for (const auto& geometries : geometryGroups) {
       vk::AccelerationStructureInfoNV accelerationStructureInfo = {
          vk::AccelerationStructureTypeNV::eBottomLevel                /*type*/,
          vk::BuildAccelerationStructureFlagBitsNV::ePreferFastTrace   /*flags*/,
          0                                                            /*instanceCount*/,
-         1                                                            /*geometryCount*/,
-         &geometry                                                    /*pGeometries*/
+         static_cast<uint32_t>(geometries.size())                     /*geometryCount*/,
+         geometries.data()                                            /*pGeometries*/
       };
       m_BLAS.emplace_back(accelerationStructureInfo);
 

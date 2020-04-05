@@ -170,7 +170,7 @@ protected:
    ///////////////////////////////
    // Ray tracing stuff
 
-   void CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const vk::GeometryNV> geometries);
+   void CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const std::vector<vk::GeometryNV>> geometryGroups);
    void DestroyBottomLevelAccelerationStructures();
 
    void CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances);

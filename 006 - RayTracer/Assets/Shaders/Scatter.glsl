@@ -1,6 +1,7 @@
 #include "Material.glsl"
 #include "Random.glsl"
 #include "RayPayload.glsl"
+#include "Texture.glsl"
 
 layout(binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
 //layout(set = 0, binding = BINDING_TEXTUREBUFFER) readonly buffer TextureArray { SamplerSomething textures[]; };
@@ -12,27 +13,34 @@ float Schlick(float cosine, float refractiveIndex) {
 }
 
 
-vec3 Color(const vec3 point, const vec2 texCoord, const Material material) {
+vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Material material) {
    switch(material.textureId) {
-      case -1:
+      case TEXTURE_FLATCOLOR: {
          // flat color
          return material.textureParam1.rgb;
-      case -2:
+      }
+      case TEXTURE_CHECKERBOARD: {
          // checkboard
          const vec3 oddColor = material.textureParam1.rgb;
          const vec3 evenColor = material.textureParam2.rgb;
          const float scale = material.textureParam1.w;
-         float sineProduct = sin(point.x * scale) * sin(point.x * scale) * sin(point.z * scale);
-         if (sineProduct < 0)
-             return oddColor;
-         else
-             return evenColor;
-      case -3:
-         // perlin
-         return material.textureParam1.rgb; // TODO
-      default:
+         float sineProduct = sin(hitPoint.x * scale) * sin(hitPoint.y * scale) * sin(hitPoint.z * scale);
+         if (sineProduct < 0) {
+            return oddColor;
+         } else {
+            return evenColor;
+         }
+      }
+      case TEXTURE_NORMALS: {
+         return (vec3(1.0f) + normal) / 2.0f;
+      }
+      case TEXTURE_RED: {
+         return vec3(1.0f, 0.0f, 0.0f);
+      }
+      default: {
          // sample from textures, indexed by textureId
          return material.textureParam1.rgb; // TODO
+      }
    }
 }
 
@@ -40,31 +48,20 @@ vec3 Color(const vec3 point, const vec2 texCoord, const Material material) {
 RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, uint randomSeed) {
    Material material = materials[materialIndex];
 
-   // debugging:
-   // Return some value as the color, with no scattering (so no ray bounces) and then check image is as-expected.
-
-   // flat color:
-   //vec3 color = vec3(1.0f, 0.0f, 0.0f);
-   //return RayPayload(vec4(color, gl_HitTNV), vec4(0), randomSeed);
-
-   // normals:
-   vec3 color = (vec3(1.0f) + normal) / 2.0f;
-   return RayPayload(vec4(color, gl_HitTNV), vec4(0), randomSeed);
-
-   // hitPoint (assumes hitPoint in model coordinate space, and from -1 to 1.
-   //vec3 color = (vec3(1.0f) + hitPoint) / 2.0f;
-   //return RayPayload(vec4(color, gl_HitTNV), vec4(0), randomSeed);
-
-
    switch(material.type) {
+      case MATERIAL_FLATCOLOR: {
+         // for debugging.  no scattering.
+         const vec4 colorAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
+         return RayPayload(colorAndDistance, vec4(0), randomSeed);
+      }
       case MATERIAL_LAMBERTIAN: {
-         const vec4 colorAndDistance = vec4(Color(hitPoint, texCoord, material), gl_HitTNV);
+         const vec4 colorAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
          const vec3 target = hitPoint + normal + RandomInUnitSphere(randomSeed);
          const vec4 scatterDirection = vec4(target - hitPoint, 1);
          return RayPayload(colorAndDistance, scatterDirection, randomSeed);
       }
       case MATERIAL_METALLIC: {
-         const vec4 colorAndDistance = vec4(Color(hitPoint, texCoord, material), gl_HitTNV);
+         const vec4 colorAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
          const vec4 scatterDirection = vec4(reflect(direction, normal) + material.roughness * RandomInUnitSphere(randomSeed), 1);
          return RayPayload(colorAndDistance, scatterDirection, randomSeed);
       }

@@ -3,16 +3,30 @@
 
 uint32_t CubeInstance::sm_ModelIndex = ~0;
 
-Cube::Cube()
-   : Model("Assets/Models/cube.obj") {
-}
+Cube::Cube() : Model("Assets/Models/cube.obj") {}
 
 
-CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, float rotateXRadians, float rotateYRadians, float rotateZRadians, Material material)
+CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, glm::vec3 rotateRadians, Material material)
 : Instance {
       sm_ModelIndex,
-      glm::mat3x4{glm::translate(glm::scale(glm::rotate(glm::rotate(glm::rotate(glm::identity<glm::mat4x4>(), rotateXRadians, {1.0f, 0.0f, 0.0f}), rotateYRadians, {0.0f, 1.0f, 0.0f}), rotateZRadians, {0.0f, 0.0f, 1.0f}), {sideLength, sideLength, sideLength}), centre)},
-      0,
+      glm::transpose(
+         glm::scale(
+            glm::rotate(
+               glm::rotate(
+                  glm::rotate(
+                     glm::translate(glm::identity<glm::mat4x4>(), centre),
+                     rotateRadians.x,
+                     {1.0f, 0.0f, 0.0f}
+                  ),
+                  rotateRadians.y,
+                  {0.0f, 1.0f, 0.0f}
+               ),
+               rotateRadians.z,
+               {0.0f, 0.0f, 1.0f}
+            ),
+            glm::vec3 {sideLength}
+         )
+      ),
       std::move(material)
    }
 {

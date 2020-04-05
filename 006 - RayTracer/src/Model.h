@@ -6,7 +6,7 @@
 
 class Model {
 public:
-   Model(const char* filename);
+   Model(const char* filename, uint32_t shaderHitGroupIndex = sm_ShaderHitGroupIndex);
 
    // For now all "Models" have vertices and indices, even though procedural geometries
    // do not strictly need these.
@@ -34,7 +34,7 @@ public:
 private:
    std::vector<Vertex> m_Vertices;
    std::vector<uint32_t> m_Indices;
-   uint32_t m_ShaderHitGroupIndex = sm_ShaderHitGroupIndex;
+   uint32_t m_ShaderHitGroupIndex;
 
    static uint32_t sm_ShaderHitGroupIndex;
 };
