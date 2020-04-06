@@ -16,10 +16,12 @@ uint InitRandomSeed(uint val0, uint val1) {
    return v0;
 }
 
+
 uint RandomInt(inout uint seed) {
    // LCG values from Numerical Recipes
    return (seed = 1664525 * seed + 1013904223);
 }
+
 
 float RandomFloat(inout uint seed) {
    // Float version using bitmask from Numerical Recipes
@@ -28,20 +30,39 @@ float RandomFloat(inout uint seed) {
    return uintBitsToFloat(one | (msk & (RandomInt(seed) >> 9))) - 1;
 }
 
-vec2 RandomInUnitDisk(inout uint seed) {
-   for (;;) {
-      const vec2 p = 2 * vec2(RandomFloat(seed), RandomFloat(seed)) - 1;
-      if (dot(p, p) < 1) {
-         return p;
-      }
-   }
+
+float RandomFloat(float minValue, float maxValue, inout uint seed) {
+   return minValue + (maxValue - minValue) * RandomFloat(seed);
 }
 
-vec3 RandomInUnitSphere(inout uint seed) {
-   for (;;) {
-      const vec3 p = 2 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1;
-      if (dot(p, p) < 1) {
-         return p;
-      }
-   }
+
+vec2 RandomInUnitDisk(inout uint seed) {
+   vec2 p;
+   do {
+      p = 2 * vec2(RandomFloat(seed), RandomFloat(seed)) - 1;
+   } while (dot(p, p) > 1.0f);
+   return p;
 }
+
+
+vec3 RandomInUnitSphere(inout uint seed) {
+   vec3 p;
+   do {
+      p = 2 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1;
+   } while (dot(p, p) > 1.0f);
+   return p;
+}
+
+
+vec3 RandomUnitVector(inout uint seed) {
+   const float a = RandomFloat(0.0f, 2.0f * 3.1415926535897932384626433832795f, seed);
+   const float z = RandomFloat(-1.0f, 1.0f, seed);
+   const float r = sqrt(1.0f - z * z);
+   return vec3(r * cos(a), r * sin(a), z);
+}
+
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+

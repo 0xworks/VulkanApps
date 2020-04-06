@@ -82,7 +82,7 @@ std::vector<const char*> RayTracer::GetRequiredDeviceExtensions() {
 void RayTracer::Init() {
    Vulkan::Application::Init();
 
-   m_Eye = {8.0f, 2.0f, 2.0f};
+   m_Eye = {8.0f, 3.0f, 2.0f};
    m_Direction = {-8.0f, -2.0f, -2.0f};
    m_Up = {0.0f, 1.0f, 0.0f};
 
@@ -130,16 +130,19 @@ void RayTracer::CreateScene() {
       eRayTracingInOneWeekend,
       eSphereCubeRotationTest
    };
-   EScene scene = EScene::eSphereCubeRotationTest;
+   EScene scene = EScene::eRayTracingInOneWeekend;
 
    switch (scene) {
       case EScene::eRayTracingInOneWeekend:
+
+         // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
+         //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
          m_Scene.AddInstance(std::make_unique<CubeInstance>(
-            glm::vec3{0.0f, -1000.0f, 0.0f}    /*centre*/,
+            glm::vec3{0.0f, -999.0f, 0.0f}    /*centre*/,
             2000.0f                            /*side length*/,
             glm::vec3{0.0f}                    /*rotation*/,
             Lambertian(                        /*material*/
-               FlatColor({0.5f, 0.5f, 0.5f})      /*texture*/
+               CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)      /*texture*/
             )
          ));
 
@@ -147,12 +150,12 @@ void RayTracer::CreateScene() {
           for (int a = -11; a < 11; a++) {
              for (int b = -11; b < 11; b++) {
                 float chooseMaterial = RandomFloat();
-                vec3 centre(a + 0.9f * RandomFloat(), 0.2f, b + 0.9f * RandomFloat());
+                vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
                 if (
-                   (glm::length(centre - glm::vec3{-4.0f, 0.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3{0.0f, 0.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3{4.0f, 0.2f, 0.0f}) > 0.9f)
-                   ) {
+                   (glm::length(centre - glm::vec3{-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3{0.0f, 1.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3{4.0f, 1.2f, 0.0f}) > 0.9f)
+                ) {
                    Material material;
                    if (chooseMaterial < 0.8) {
                       // diffuse
@@ -175,23 +178,23 @@ void RayTracer::CreateScene() {
  
           // the three main spheres...
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{0.0f, 1.0f, 0.0f}   /*centre*/,
+             glm::vec3{0.0f, 2.0f, 0.0f}   /*centre*/,
              1.0f                          /*radius*/,
              Dielectric(1.5f)              /*material*/
           ));
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{-4.0f, 1.0f, 0.0f}     /*centre*/,
+             glm::vec3{-4.0f, 2.0f, 0.0f}     /*centre*/,
              1.0f                             /*radius*/,
              Lambertian(                      /*material*/
-                FlatColor({0.4f, 0.2f, 0.1f})    /*texture*/
+                Simplex3D({0.4f, 0.2f, 0.1f}, 10.0f, 0.2f)    /*texture*/
              )
           ));
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{4.0f, 1.0f, 0.0f}       /*centre*/,
+             glm::vec3{4.0f, 2.0f, 0.0f}       /*centre*/,
              1.0f                              /*radius*/,
              Metallic(                         /*material*/
                 FlatColor({0.7f, 0.6f, 0.5f}),    /*texture*/
-                0.005f                            /*roughness*/
+                0.0f                              /*roughness*/
              )
           ));
           break;
@@ -1031,7 +1034,7 @@ void RayTracer::RecordCommandBuffers() {
    //       (without re-recording the entire command buffer)
    //       Could just shove them into the uniform buffer object instead.
    Constants constants = {
-      8,                           // max ray bounces
+      16,                           // max ray bounces
       0.0,                         // lens aperture
       glm::length(m_Direction)     // lens focal length
    };

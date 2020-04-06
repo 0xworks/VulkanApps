@@ -12,17 +12,30 @@ struct Texture {
 
 
 inline
-Texture FlatColor(glm::vec3 color) {
+Texture FlatColor(const glm::vec3 color) {
    return Texture{TEXTURE_FLATCOLOR, glm::vec4{color, 0.0f}};
 }
 
 
 inline
-Texture CheckerBoard(glm::vec3 colorOdd, glm::vec3 colorEven, float size) {
-   return Texture{TEXTURE_CHECKERBOARD, glm::vec4{colorOdd, size}, glm::vec4{colorEven, 0.0f}};
+Texture CheckerBoard(const glm::vec3 colorOdd, const glm::vec3 colorEven, const float scale) {
+   return Texture{TEXTURE_CHECKERBOARD, glm::vec4{colorOdd, scale}, glm::vec4{colorEven, 0.0f}};
 }
+
+
+inline
+Texture Simplex3D(const glm::vec3 color, const float scale, const float amplitude) {
+   return Texture {TEXTURE_SIMPLEX3D, glm::vec4{color, amplitude}, glm::vec4{0.0f, 0.0f, 0.0f, scale}};
+}
+
 
 inline
 Texture Normals() {
    return Texture {TEXTURE_NORMALS};
+}
+
+
+inline
+Texture TextureUV() {
+   return Texture {TEXTURE_UV};
 }

@@ -25,16 +25,16 @@ layout(location = 0) rayPayloadNV RayPayload ray;
 void main() {
    ray.randomSeed = InitRandomSeed(InitRandomSeed(gl_LaunchIDNV.x, gl_LaunchIDNV.y), ubo.accumulatedFrameCount);
 
-   const vec2 uv = (vec2(gl_LaunchIDNV.xy) + vec2(RandomFloat(ray.randomSeed), RandomFloat(ray.randomSeed))) / vec2(gl_LaunchSizeNV.xy) * 2.0 - 1.0;
+   const vec2 uv = (vec2(gl_LaunchIDNV.xy) + vec2(RandomFloat(ray.randomSeed), RandomFloat(ray.randomSeed))) / vec2(gl_LaunchSizeNV.xy) * 2.0f - 1.0f;
 
    const vec2 offset = constants.lensAperture * RandomInUnitDisk(ray.randomSeed);
-   vec4 origin = ubo.viewInverse * vec4(offset, 0.0, 1.0);
-   const vec4 target = ubo.projInverse * vec4(uv, 1.0, 1.0);
-   vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz * constants.lensFocalLength - vec3(offset, 0.0)), 0.0);
+   vec4 origin = ubo.viewInverse * vec4(offset, 0.0f, 1.0f);
+   const vec4 target = ubo.projInverse * vec4(uv, 1.0f, 1.0f);
+   vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz * constants.lensFocalLength - vec3(offset, 0.0f)), 0.0f);
 
-   vec3 rayColor = vec3(1.0);
+   vec3 rayColor = vec3(1.0f);
    
-   for (uint b = 0; b < constants.maxRayBounces; ++b) {
+   for (uint b = 0; b <= constants.maxRayBounces; ++b) {
       traceNV(
          world,
          gl_RayFlagsOpaqueNV,
@@ -43,21 +43,28 @@ void main() {
          0,                // sbt record stride
          0,                // miss index
          origin.xyz,
-         0.001,            // tmin
+         0.001f,           // tmin
          direction.xyz,
-         10000.0,          // tmax
+         10000.0f,         // tmax
          0                 // ray payload (binding index) 
       );
-      rayColor *= ray.colorAndDistance.rgb;
 
       const float t = ray.colorAndDistance.w;
-      const bool isScattered = ray.scatterDirection.w > 0;
 
-      // no hit, or complete absorption
-      if (t < 0 || !isScattered) {
+      if (t < 0.0f) {
+         // no hit, multiply by sky color and done.
+         rayColor *= ray.colorAndDistance.rgb;
          break;
       }
 
+      const bool isScattered = ray.scatterDirection.w > 0.0f;
+      if(!isScattered) {
+         // complete absorbtion, done.
+         rayColor = vec3(0.0f);
+      }
+
+      // attenuate and scatter...      
+      rayColor *= ray.colorAndDistance.rgb;
       origin = origin + t * direction;
       direction = vec4(ray.scatterDirection.xyz, 0);
    }
