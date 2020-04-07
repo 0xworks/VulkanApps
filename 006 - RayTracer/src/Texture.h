@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 
+using vec3 = glm::vec3;
 #include "Texture.glsl"
 
 struct Texture {
@@ -24,10 +25,20 @@ Texture CheckerBoard(const glm::vec3 colorOdd, const glm::vec3 colorEven, const 
 
 
 inline
-Texture Simplex3D(const glm::vec3 color, const float scale, const float amplitude) {
-   return Texture {TEXTURE_SIMPLEX3D, glm::vec4{color, amplitude}, glm::vec4{0.0f, 0.0f, 0.0f, scale}};
+Texture Simplex3D(const glm::vec3 color, const float scale, const float weight) {
+   return Texture {TEXTURE_SIMPLEX3D, glm::vec4{color, weight}, glm::vec4{0.0f, 0.0f, 0.0f, scale}};
 }
 
+
+inline
+Texture Turbulence(const glm::vec3 color, const float scale, const float weight, const int depth) {
+   return Texture {TEXTURE_TURBULENCE, glm::vec4{color, weight}, glm::vec4{0.0f, 0.0f, static_cast<float>(depth), scale}};
+}
+
+inline
+Texture Marble(const glm::vec3 color, const float scale, const float weight, const int depth) {
+   return Texture {TEXTURE_MARBLE, glm::vec4{color, weight}, glm::vec4{0.0f, 0.0f, static_cast<float>(depth), scale}};
+}
 
 inline
 Texture Normals() {

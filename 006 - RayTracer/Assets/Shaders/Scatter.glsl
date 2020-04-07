@@ -14,6 +14,21 @@ float Schlick(float cosine, float refractiveIndex) {
 }
 
 
+float turbulence(vec3 p, int depth) {
+   float accum = 0.0;
+   vec3 temp_p = p;
+   float weight = 1.0;
+
+   for (int i = 0; i < depth; ++i) {
+      accum += weight * snoise(temp_p);
+      weight *= 0.5;
+      temp_p *= 2;
+   }
+
+   return abs(accum);
+}
+
+
 vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Material material) {
    switch(material.textureId) {
       case TEXTURE_FLATCOLOR: {
@@ -39,9 +54,20 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
       }
 
       case TEXTURE_SIMPLEX3D: {
+         vec3 p = gl_WorldToObjectNV * vec4(hitPoint, 1); // This isnt strictly necessary, but seems more correct to me. (two balls next to each other with the same texture will appear the same)
+         p *= material.textureParam2.w; // scale
+         return mix(material.textureParam1.rgb, vec3(snoise(p)), material.textureParam1.w);
+      }
+
+      case TEXTURE_TURBULENCE: {
          vec3 p = gl_WorldToObjectNV * vec4(hitPoint, 1);
          p *= material.textureParam2.w; // scale
-         return material.textureParam1.rgb * vec3(0.5 + material.textureParam1.w * snoise(p));
+         return mix(material.textureParam1.rgb, vec3(turbulence(p, int(material.textureParam2.z))), material.textureParam1.w);   
+      }
+
+      case TEXTURE_MARBLE: {
+         vec3 p = gl_WorldToObjectNV * vec4(hitPoint, 1);
+         return mix(material.textureParam1.rgb, vec3(sin(material.textureParam2.w * p.z + 10.0 * turbulence(p, int(material.textureParam2.z)))), material.textureParam1.w);
       }
 
       case TEXTURE_NORMALS: {
@@ -113,4 +139,3 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
       }
    }
 }
-

@@ -3,6 +3,8 @@
 #define TEXTURE_FLATCOLOR        -1
 #define TEXTURE_CHECKERBOARD     -2
 #define TEXTURE_SIMPLEX3D        -3
+#define TEXTURE_TURBULENCE       -4
+#define TEXTURE_MARBLE           -5
 #define TEXTURE_NORMALS          -100
 #define TEXTURE_UV               -101
 #define TEXTURE_RED              -102

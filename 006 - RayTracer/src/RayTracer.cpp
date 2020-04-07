@@ -150,6 +150,7 @@ void RayTracer::CreateScene() {
           for (int a = -11; a < 11; a++) {
              for (int b = -11; b < 11; b++) {
                 float chooseMaterial = RandomFloat();
+                float chooseTexture = RandomFloat();
                 vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
                 if (
                    (glm::length(centre - glm::vec3{-4.0f, 1.2f, 0.0f}) > 0.9f) &&
@@ -159,9 +160,30 @@ void RayTracer::CreateScene() {
                    Material material;
                    if (chooseMaterial < 0.8) {
                       // diffuse
-                      material = Lambertian(
-                         FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
-                      );
+                      if (chooseTexture < 0.33) {
+                         // flatcolor
+                         material = Lambertian(
+                            FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+                         );
+                      } else if (chooseTexture < 0.67) {
+                         // simplex
+                         material = Lambertian(
+                            Simplex3D(
+                               {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
+                               10 * RandomFloat(),
+                               RandomFloat()
+                            )
+                         );
+                      } else {
+                         material = Lambertian(
+                            Turbulence(
+                               {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
+                               10 * RandomFloat(),
+                               RandomFloat(),
+                               static_cast<int>(10 * RandomFloat())
+                            )
+                         );
+                      }
                    } else if (chooseMaterial < 0.95) {
                       // metal
                       material = Metallic(
@@ -186,15 +208,26 @@ void RayTracer::CreateScene() {
              glm::vec3{-4.0f, 2.0f, 0.0f}     /*centre*/,
              1.0f                             /*radius*/,
              Lambertian(                      /*material*/
-                Simplex3D({0.4f, 0.2f, 0.1f}, 10.0f, 0.2f)    /*texture*/
-             )
+                Marble(                          /*texture*/
+                   {1.0f, 1.0f, 1.0f}               /*color*/,
+                   4.0f                             /*scale*/,
+                   0.5f                             /*weight*/,
+                   7                                /*depth*/
+                )
+              )
           ));
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
              glm::vec3{4.0f, 2.0f, 0.0f}       /*centre*/,
              1.0f                              /*radius*/,
              Metallic(                         /*material*/
-                FlatColor({0.7f, 0.6f, 0.5f}),    /*texture*/
-                0.0f                              /*roughness*/
+                Marble(                          /*texture*/
+                   {0.7f, 0.6f, 0.5f}               /*color*/,
+                   4.0f                             /*scale*/,
+                   0.04f                             /*weight*/,
+                   7                                /*depth*/
+                ),
+                //FlatColor({0.7f, 0.6f, 0.5f}),    /*texture*/
+                0.01f                              /*roughness*/
              )
           ));
           break;
