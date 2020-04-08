@@ -132,7 +132,7 @@ void RayTracer::CreateScene() {
       eRayTracingTheNextWeekTexturesAndLight,
       eSphereCubeRotationTest
    };
-   EScene scene = EScene::eRayTracingTheNextWeekTextures;
+   EScene scene = EScene::eRayTracingTheNextWeekTexturesAndLight;
 
    switch (scene) {
       case EScene::eRayTracingInOneWeekend:
