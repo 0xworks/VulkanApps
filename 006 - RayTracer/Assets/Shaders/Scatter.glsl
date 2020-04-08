@@ -92,23 +92,24 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 
 RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, uint randomSeed) {
    Material material = materials[materialIndex];
+   const vec4 emission = vec4(0.0);
 
    switch(material.type) {
       case MATERIAL_FLATCOLOR: {
          // for debugging.  no scattering.
-         const vec4 colorAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
-         return RayPayload(colorAndDistance, vec4(0), randomSeed);
+         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
+         return RayPayload(attenuationAndDistance, emission, vec4(0.0), randomSeed);
       }
       case MATERIAL_LAMBERTIAN: {
-         const vec4 colorAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
+         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
          const vec3 target = hitPoint + normal + RandomUnitVector(randomSeed);
          const vec4 scatterDirection = vec4(target - hitPoint, 1);
-         return RayPayload(colorAndDistance, scatterDirection, randomSeed);
+         return RayPayload(attenuationAndDistance, emission, scatterDirection, randomSeed);
       }
       case MATERIAL_METALLIC: {
          const vec3 color = Color(hitPoint, normal, texCoord, material);
          const vec3 scatterDirection = reflect(direction, normal) + material.roughness * RandomInUnitSphere(randomSeed);
-         return RayPayload(vec4(color, gl_HitTNV), vec4(scatterDirection, dot(scatterDirection, normal) > 0), randomSeed);
+         return RayPayload(vec4(color, gl_HitTNV), emission, vec4(scatterDirection, dot(scatterDirection, normal) > 0), randomSeed);
       }
       case MATERIAL_DIELECTRIC: {
          vec3 outward_normal;
@@ -125,7 +126,7 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
             cosine = -dot(direction, normal) / length(direction);
          }
          const vec3 refracted = refract(direction, outward_normal, ni_over_nt);
-         const vec4 colorAndDistance = vec4(1.0, 1.0, 1.0, gl_HitTNV);
+         const vec4 attenuationAndDistance = vec4(1.0, 1.0, 1.0, gl_HitTNV);
          if(dot(refracted, refracted) > 0) {
             reflect_prob = Schlick(cosine, material.refractiveIndex);
          } else {
@@ -133,9 +134,9 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
          }
          if(RandomFloat(randomSeed) < reflect_prob) {
             const vec3 reflected = reflect(direction, normal);
-            return RayPayload(colorAndDistance, vec4(reflected, 1), randomSeed);
+            return RayPayload(attenuationAndDistance, emission, vec4(reflected, 1), randomSeed);
          }
-         return RayPayload(colorAndDistance, vec4(refracted, 1), randomSeed);
+         return RayPayload(attenuationAndDistance, vec4(0.5), vec4(refracted, 1), randomSeed);
       }
    }
 }

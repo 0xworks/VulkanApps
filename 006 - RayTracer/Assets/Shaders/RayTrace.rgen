@@ -32,7 +32,8 @@ void main() {
    const vec4 target = ubo.projInverse * vec4(uv, 1.0f, 1.0f);
    vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz * constants.lensFocalLength - vec3(offset, 0.0f)), 0.0f);
 
-   vec3 rayColor = vec3(1.0f);
+   vec3 rayColor = vec3(0.0f);
+   vec3 attenuation = vec3(1.0f);
    
    for (uint b = 0; b <= constants.maxRayBounces; ++b) {
       traceNV(
@@ -49,22 +50,20 @@ void main() {
          0                 // ray payload (binding index) 
       );
 
-      const float t = ray.colorAndDistance.w;
+      const float t = ray.attenuationAndDistance.w;
+
+      rayColor += attenuation * ray.emission.rgb;
 
       if (t < 0.0f) {
-         // no hit, multiply by sky color and done.
-         rayColor *= ray.colorAndDistance.rgb;
          break;
       }
 
       const bool isScattered = ray.scatterDirection.w > 0.0f;
       if(!isScattered) {
-         // complete absorbtion, done.
-         rayColor = vec3(0.0f);
+         break;
       }
 
-      // attenuate and scatter...      
-      rayColor *= ray.colorAndDistance.rgb;
+      attenuation *= ray.attenuationAndDistance.rgb;
       origin = origin + t * direction;
       direction = vec4(ray.scatterDirection.xyz, 0);
    }

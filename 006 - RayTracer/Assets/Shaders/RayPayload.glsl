@@ -1,6 +1,7 @@
 struct RayPayload
 {
-   vec4 colorAndDistance; // rgb + t
-   vec4 scatterDirection; // direction + isScattered
+   vec4 attenuationAndDistance; // rgb,t
+   vec4 emission;               // rgb,notused
+   vec4 scatterDirection;       // xyz,isScattered
    uint randomSeed;
 };

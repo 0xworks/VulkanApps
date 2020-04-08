@@ -129,7 +129,7 @@ void RayTracer::CreateScene() {
    // set this to control which scene is generated
    enum class EScene {
       eRayTracingInOneWeekend,
-      eRayTracingTheNextWeekTextures,
+      eRayTracingTheNextWeekTexturesAndLight,
       eSphereCubeRotationTest
    };
    EScene scene = EScene::eRayTracingTheNextWeekTextures;
@@ -204,9 +204,9 @@ void RayTracer::CreateScene() {
           ));
           break;
 
-      case EScene::eRayTracingTheNextWeekTextures:
-          m_Scene.SetHorizonColor({1.0f, 1.0f, 1.0f});
-          m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
+      case EScene::eRayTracingTheNextWeekTexturesAndLight:
+          m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
+          m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
 
           // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
           //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
