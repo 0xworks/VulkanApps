@@ -6,5 +6,7 @@
 struct UniformBufferObject {
    mat4 viewInverse;
    mat4 projInverse;
+   vec4 horizonColor;
+   vec4 zenithColor;
    uint accumulatedFrameCount;
 };

@@ -12,6 +12,7 @@ using uint = uint32_t;
 
 using mat4 = glm::mat4;
 using uint = uint32_t;
+using vec3 = glm::vec3;
 #include "UniformBufferObject.glsl"
 
 #include "Utility.h"
@@ -128,23 +129,95 @@ void RayTracer::CreateScene() {
    // set this to control which scene is generated
    enum class EScene {
       eRayTracingInOneWeekend,
+      eRayTracingTheNextWeekTextures,
       eSphereCubeRotationTest
    };
-   EScene scene = EScene::eRayTracingInOneWeekend;
+   EScene scene = EScene::eRayTracingTheNextWeekTextures;
 
    switch (scene) {
       case EScene::eRayTracingInOneWeekend:
 
+         m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
+         m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
+
          // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
          //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
          m_Scene.AddInstance(std::make_unique<CubeInstance>(
-            glm::vec3{0.0f, -999.0f, 0.0f}    /*centre*/,
-            2000.0f                            /*side length*/,
-            glm::vec3{0.0f}                    /*rotation*/,
-            Lambertian(                        /*material*/
-               CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)      /*texture*/
+            glm::vec3{0.0f, -999.0f, 0.0f}       /*centre*/,
+            2000.0f                               /*side length*/,
+            glm::vec3{0.0f}                     /*rotation*/,
+            Lambertian(                         /*material*/
+               FlatColor({0.5, 0.5, 0.5})
             )
          ));
+
+          // small random spheres
+          for (int a = -11; a < 11; a++) {
+             for (int b = -11; b < 11; b++) {
+                float chooseMaterial = RandomFloat();
+                vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
+                if (
+                   (glm::length(centre - glm::vec3{-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3{0.0f, 1.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3{4.0f, 1.2f, 0.0f}) > 0.9f)
+                ) {
+                   Material material;
+                   if (chooseMaterial < 0.8) {
+                      // diffuse
+                      material = Lambertian(
+                         FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+                      );
+                   } else if (chooseMaterial < 0.95) {
+                      // metal
+                      material = Metallic(
+                         FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                         0.5f * RandomFloat()
+                      );
+                   } else {
+                      material = Dielectric(1.5f);
+                   }
+                   m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+                }
+             }
+          }
+ 
+          // the three main spheres...
+          m_Scene.AddInstance(std::make_unique<SphereInstance>(
+             glm::vec3{0.0f, 2.0f, 0.0f}   /*centre*/,
+             1.0f                          /*radius*/,
+             Dielectric(1.5f)              /*material*/
+          ));
+          m_Scene.AddInstance(std::make_unique<SphereInstance>(
+             glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
+             1.0f                             /*radius*/,
+             Lambertian(                      /*material*/
+                FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
+             )
+          ));
+          m_Scene.AddInstance(std::make_unique<SphereInstance>(
+             glm::vec3{4.0f, 2.0f, 0.0f}       /*centre*/,
+             1.0f                              /*radius*/,
+             Metallic(                         /*material*/
+                FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
+                0.01f                              /*roughness*/
+             )
+          ));
+          break;
+
+      case EScene::eRayTracingTheNextWeekTextures:
+          m_Scene.SetHorizonColor({1.0f, 1.0f, 1.0f});
+          m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
+
+          // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
+          //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
+          m_Scene.AddInstance(std::make_unique<CubeInstance>(
+             glm::vec3 {0.0f, -999.0f, 0.0f}       /*centre*/,
+             2000.0f                               /*side length*/,
+             glm::vec3 {0.0f}                     /*rotation*/,
+             Lambertian(                         /*material*/
+                CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)      /*texture*/
+             )
+          ));
 
           // small random spheres
           for (int a = -11; a < 11; a++) {
@@ -153,9 +226,9 @@ void RayTracer::CreateScene() {
                 float chooseTexture = RandomFloat();
                 vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
                 if (
-                   (glm::length(centre - glm::vec3{-4.0f, 1.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3{0.0f, 1.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3{4.0f, 1.2f, 0.0f}) > 0.9f)
+                   (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
+                   (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
                 ) {
                    Material material;
                    if (chooseMaterial < 0.8) {
@@ -197,15 +270,15 @@ void RayTracer::CreateScene() {
                 }
              }
           }
- 
+
           // the three main spheres...
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{0.0f, 2.0f, 0.0f}   /*centre*/,
+             glm::vec3 {0.0f, 2.0f, 0.0f}   /*centre*/,
              1.0f                          /*radius*/,
              Dielectric(1.5f)              /*material*/
           ));
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{-4.0f, 2.0f, 0.0f}     /*centre*/,
+             glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
              1.0f                             /*radius*/,
              Lambertian(                      /*material*/
                 Marble(                          /*texture*/
@@ -214,10 +287,10 @@ void RayTracer::CreateScene() {
                    0.5f                             /*weight*/,
                    7                                /*depth*/
                 )
-              )
+             )
           ));
           m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{4.0f, 2.0f, 0.0f}       /*centre*/,
+             glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
              1.0f                              /*radius*/,
              Metallic(                         /*material*/
                 Marble(                          /*texture*/
@@ -226,7 +299,6 @@ void RayTracer::CreateScene() {
                    0.04f                             /*weight*/,
                    7                                /*depth*/
                 ),
-                //FlatColor({0.7f, 0.6f, 0.5f}),    /*texture*/
                 0.01f                              /*roughness*/
              )
           ));
@@ -672,9 +744,9 @@ void RayTracer::CreatePipelineLayout() {
    // In a more complex scenario you would have different pipeline layouts for different descriptor set layouts that could be reused
 
    vk::PushConstantRange pushConstantRange = {
-      vk::ShaderStageFlagBits::eRaygenNV            /*stageFlags*/,
-      0                                             /*offset*/,
-      static_cast<uint32_t>(sizeof(Constants))      /*size*/
+      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eMissNV    /*stageFlags*/,
+      0                                                                        /*offset*/,
+      static_cast<uint32_t>(sizeof(Constants))                                 /*size*/
    };
 
    m_PipelineLayout = m_Device.createPipelineLayout({
@@ -1067,15 +1139,15 @@ void RayTracer::RecordCommandBuffers() {
    //       (without re-recording the entire command buffer)
    //       Could just shove them into the uniform buffer object instead.
    Constants constants = {
-      16,                           // max ray bounces
-      0.0,                         // lens aperture
-      glm::length(m_Direction)     // lens focal length
+      16                           /*max ray bounces*/,
+      0.0                          /*lens aperture*/,
+      glm::length(m_Direction)     /*lens focal length*/
    };
 
    for (uint32_t i = 0; i < m_CommandBuffers.size(); ++i) {
       vk::CommandBuffer& commandBuffer = m_CommandBuffers[i];
       commandBuffer.begin(commandBufferBI);
-      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenNV, 0, constants);
+      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eMissNV, 0, constants);
       commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, m_Pipeline);
       commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
 
@@ -1176,6 +1248,8 @@ void RayTracer::RenderFrame() {
    UniformBufferObject ubo = {
       glm::inverse(modelView),
       glm::inverse(projection),
+      glm::vec4{m_Scene.GetHorizonColor(), 0.0f},
+      glm::vec4{m_Scene.GetZenithColor(), 0.0f},
       m_AccumulatedImageCount
    };
 

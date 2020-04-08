@@ -1,5 +1,25 @@
 #include "Scene.h"
 
+glm::vec3 Scene::GetHorizonColor() const {
+   return m_HorizonColor;
+}
+
+
+void Scene::SetHorizonColor(const glm::vec3& color) {
+   m_HorizonColor = color;
+}
+
+
+glm::vec3 Scene::GetZenithColor() const {
+   return m_ZenithColor;
+}
+
+
+void Scene::SetZenithColor(const glm::vec3& color) {
+   m_ZenithColor = color;
+}
+
+
 uint32_t
 Scene::AddModel(std::unique_ptr<Model> model) {
    m_Models.emplace_back(std::move(model));
