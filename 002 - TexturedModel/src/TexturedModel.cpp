@@ -84,7 +84,7 @@ void TexturedModel::LoadModel() {
    std::vector<tinyobj::material_t> materials;
    std::string warn, err;
 
-   if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, "Assets/Models/Mars_2K.obj")) {
+   if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, "Assets/Models/Cube.obj")) {
       throw std::runtime_error(warn + err);
    }
 
@@ -162,7 +162,7 @@ void TexturedModel::CreateTextureResources() {
    int texHeight;
    int texChannels;
 
-   stbi_uc* pixels = stbi_load("Assets/Textures/Diffuse_2K.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+   stbi_uc* pixels = stbi_load("Assets/Textures/Statue.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
    vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth)* static_cast<vk::DeviceSize>(texHeight) * 4;
    uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 

@@ -36,13 +36,11 @@ set(
 set(
 	model_files
 	"Assets/Models/Cube.obj"
-	"Assets/Models/Mars_2K.obj"
 )
 
 set(
 	texture_files
 	"Assets/Textures/Statue.jpg"
-	"Assets/Textures/Diffuse_2K.png"
 )
 
 set_source_files_properties(${shader_header_files} PROPERTIES HEADER_FILE_ONLY TRUE)
