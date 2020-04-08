@@ -3,7 +3,7 @@
 
 uint32_t CubeInstance::sm_ModelIndex = ~0;
 
-Cube::Cube() : Model("Assets/Models/cube.obj") {}
+Cube::Cube() : Model("Assets/Models/Cube.obj") {}
 
 
 CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, glm::vec3 rotateRadians, Material material)

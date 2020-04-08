@@ -24,6 +24,7 @@ set(
    "src/Offset.h"
    "src/RayTracer.h"
    "src/RayTracer.cpp"
+   "src/Rectangle2D.cpp"
    "src/Scene.h"
    "src/Scene.cpp"
    "src/Sphere.h"
@@ -61,8 +62,9 @@ set(
 
 set(
    model_files
-   "Assets/Models/cube.obj"
-   "Assets/Models/sphere.obj"
+   "Assets/Models/Cube.obj"
+   "Assets/Models/Rectangle2D.obj"
+   "Assets/Models/Sphere.obj"
 )
 
 set(

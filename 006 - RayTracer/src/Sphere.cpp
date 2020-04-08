@@ -5,7 +5,7 @@ uint32_t Sphere::sm_ShaderHitGroupIndex = ~0;
 uint32_t SphereInstance::sm_ModelIndex = ~0;
 
 
-Sphere::Sphere() : Model("Assets/Models/sphere.obj", Sphere::sm_ShaderHitGroupIndex) {}
+Sphere::Sphere() : Model("Assets/Models/Sphere.obj", Sphere::sm_ShaderHitGroupIndex) {}
 
 
 bool Sphere::IsProcedural() const {

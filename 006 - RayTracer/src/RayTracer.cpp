@@ -8,6 +8,7 @@ using uint = uint32_t;
 #include "Cube.h"
 #include "GeometryInstance.h"
 #include "Offset.h"
+#include "Rectangle2D.h"
 #include "Sphere.h"
 
 using mat4 = glm::mat4;
@@ -124,6 +125,7 @@ void RayTracer::CreateScene() {
 
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
    CubeInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Cube>()));
+   Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    // HACK:
    // set this to control which scene is generated
@@ -205,17 +207,17 @@ void RayTracer::CreateScene() {
           break;
 
       case EScene::eRayTracingTheNextWeekTexturesAndLight:
-          m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
+          m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
           m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
 
           // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
           //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
-          m_Scene.AddInstance(std::make_unique<CubeInstance>(
-             glm::vec3 {0.0f, -999.0f, 0.0f}       /*centre*/,
-             2000.0f                               /*side length*/,
-             glm::vec3 {0.0f}                     /*rotation*/,
-             Lambertian(                         /*material*/
-                CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)      /*texture*/
+          m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+             glm::vec3 {-500.0f, 1.0f, 500.0f}                                         /*origin*/,
+             glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
+             glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
+             Lambertian(                                                               /*material*/
+                CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)                  /*texture*/
              )
           ));
 
