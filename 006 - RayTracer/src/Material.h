@@ -31,3 +31,9 @@ inline
 Material Dielectric(float refractiveIndex) {
    return Material {MATERIAL_DIELECTRIC, 0.0, refractiveIndex};
 }
+
+
+inline
+Material DiffuseLight(Texture texture) {
+   return Material {MATERIAL_DIFFUSELIGHT, 0.0, 0.0, texture.id, texture.param1, texture.param2};
+}

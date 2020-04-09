@@ -92,25 +92,27 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 
 RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, uint randomSeed) {
    Material material = materials[materialIndex];
-   const vec4 emission = vec4(0.0);
 
    switch(material.type) {
       case MATERIAL_FLATCOLOR: {
-         // for debugging.  no scattering.
+         // for debugging.  no emission or scattering
          const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
-         return RayPayload(attenuationAndDistance, emission, vec4(0.0), randomSeed);
+         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(0.0), randomSeed);
       }
+
       case MATERIAL_LAMBERTIAN: {
          const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
          const vec3 target = hitPoint + normal + RandomUnitVector(randomSeed);
          const vec4 scatterDirection = vec4(target - hitPoint, 1);
-         return RayPayload(attenuationAndDistance, emission, scatterDirection, randomSeed);
+         return RayPayload(attenuationAndDistance, vec4(0.0), scatterDirection, randomSeed);
       }
+
       case MATERIAL_METALLIC: {
          const vec3 color = Color(hitPoint, normal, texCoord, material);
          const vec3 scatterDirection = reflect(direction, normal) + material.roughness * RandomInUnitSphere(randomSeed);
-         return RayPayload(vec4(color, gl_HitTNV), emission, vec4(scatterDirection, dot(scatterDirection, normal) > 0), randomSeed);
+         return RayPayload(vec4(color, gl_HitTNV), vec4(0.0), vec4(scatterDirection, dot(scatterDirection, normal) > 0), randomSeed);
       }
+
       case MATERIAL_DIELECTRIC: {
          vec3 outward_normal;
          float ni_over_nt;
@@ -134,9 +136,13 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
          }
          if(RandomFloat(randomSeed) < reflect_prob) {
             const vec3 reflected = reflect(direction, normal);
-            return RayPayload(attenuationAndDistance, emission, vec4(reflected, 1), randomSeed);
+            return RayPayload(attenuationAndDistance, vec4(0.0), vec4(reflected, 1), randomSeed);
          }
-         return RayPayload(attenuationAndDistance, vec4(0.5), vec4(refracted, 1), randomSeed);
+         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(refracted, 1), randomSeed);
+      } 
+
+      case MATERIAL_DIFFUSELIGHT: {
+         return RayPayload(vec4(0.0, 0.0, 0.0, gl_HitTNV), vec4(Color(hitPoint, normal, texCoord, material), 0.0), vec4(0.0), randomSeed);
       }
    }
 }

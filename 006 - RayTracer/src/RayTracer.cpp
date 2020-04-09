@@ -132,12 +132,13 @@ void RayTracer::CreateScene() {
    enum class EScene {
       eRayTracingInOneWeekend,
       eRayTracingTheNextWeekTexturesAndLight,
+      eRayTracingInOneWeekendOnPillar,
       eSphereCubeRotationTest
    };
    EScene scene = EScene::eRayTracingTheNextWeekTexturesAndLight;
 
    switch (scene) {
-      case EScene::eRayTracingInOneWeekend:
+      case EScene::eRayTracingInOneWeekend: {
 
          m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
          m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
@@ -145,174 +146,177 @@ void RayTracer::CreateScene() {
          // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
          //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
          m_Scene.AddInstance(std::make_unique<CubeInstance>(
-            glm::vec3{0.0f, -999.0f, 0.0f}       /*centre*/,
+            glm::vec3 {0.0f, -999.0f, 0.0f}       /*centre*/,
             2000.0f                               /*side length*/,
-            glm::vec3{0.0f}                     /*rotation*/,
+            glm::vec3 {0.0f}                     /*rotation*/,
             Lambertian(                         /*material*/
                FlatColor({0.5, 0.5, 0.5})
             )
          ));
 
-          // small random spheres
-          for (int a = -11; a < 11; a++) {
-             for (int b = -11; b < 11; b++) {
-                float chooseMaterial = RandomFloat();
-                vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
-                if (
-                   (glm::length(centre - glm::vec3{-4.0f, 1.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3{0.0f, 1.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3{4.0f, 1.2f, 0.0f}) > 0.9f)
-                ) {
-                   Material material;
-                   if (chooseMaterial < 0.8) {
-                      // diffuse
-                      material = Lambertian(
-                         FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
-                      );
-                   } else if (chooseMaterial < 0.95) {
-                      // metal
-                      material = Metallic(
-                         FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
-                         0.5f * RandomFloat()
-                      );
-                   } else {
-                      material = Dielectric(1.5f);
-                   }
-                   m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
-                }
-             }
-          }
- 
-          // the three main spheres...
-          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{0.0f, 2.0f, 0.0f}   /*centre*/,
-             1.0f                          /*radius*/,
-             Dielectric(1.5f)              /*material*/
-          ));
-          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
-             1.0f                             /*radius*/,
-             Lambertian(                      /*material*/
-                FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
-             )
-          ));
-          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3{4.0f, 2.0f, 0.0f}       /*centre*/,
-             1.0f                              /*radius*/,
-             Metallic(                         /*material*/
-                FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
-                0.01f                              /*roughness*/
-             )
-          ));
-          break;
+         // small random spheres
+         for (int a = -11; a < 11; a++) {
+            for (int b = -11; b < 11; b++) {
+               float chooseMaterial = RandomFloat();
+               vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
+               if (
+                  (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+                  (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
+                  (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
+               ) {
+                  Material material;
+                  if (chooseMaterial < 0.8) {
+                     // diffuse
+                     material = Lambertian(
+                        FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+                     );
+                  } else if (chooseMaterial < 0.95) {
+                     // metal
+                     material = Metallic(
+                        FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                        0.5f * RandomFloat()
+                     );
+                  } else {
+                     material = Dielectric(1.5f);
+                  }
+                  m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+               }
+            }
+         }
 
-      case EScene::eRayTracingTheNextWeekTexturesAndLight:
-          m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
-          m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
+         // the three main spheres...
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3 {0.0f, 2.0f, 0.0f}   /*centre*/,
+            1.0f                           /*radius*/,
+            Dielectric(1.5f)               /*material*/
+         ));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
+            1.0f                              /*radius*/,
+            Lambertian(                       /*material*/
+               FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
+            )
+         ));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
+            1.0f                               /*radius*/,
+            Metallic(                          /*material*/
+               FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
+               0.01f                              /*roughness*/
+            )
+         ));
+         break;
+      }
 
-          // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
-          //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
-          m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-             glm::vec3 {-500.0f, 1.0f, 500.0f}                                         /*origin*/,
-             glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
-             glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
-             Lambertian(                                                               /*material*/
-                CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)                  /*texture*/
-             )
-          ));
+      case EScene::eRayTracingTheNextWeekTexturesAndLight: {
+         m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
+         m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
 
-          // small random spheres
-          for (int a = -11; a < 11; a++) {
-             for (int b = -11; b < 11; b++) {
-                float chooseMaterial = RandomFloat();
-                float chooseTexture = RandomFloat();
-                vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
-                if (
-                   (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
-                   (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
-                ) {
-                   Material material;
-                   if (chooseMaterial < 0.8) {
-                      // diffuse
-                      if (chooseTexture < 0.33) {
-                         // flatcolor
-                         material = Lambertian(
-                            FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
-                         );
-                      } else if (chooseTexture < 0.67) {
-                         // simplex
-                         material = Lambertian(
-                            Simplex3D(
-                               {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
-                               10 * RandomFloat(),
-                               RandomFloat()
-                            )
-                         );
-                      } else {
-                         material = Lambertian(
-                            Turbulence(
-                               {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
-                               10 * RandomFloat(),
-                               RandomFloat(),
-                               static_cast<int>(10 * RandomFloat())
-                            )
-                         );
-                      }
-                   } else if (chooseMaterial < 0.95) {
-                      // metal
-                      material = Metallic(
-                         FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
-                         0.5f * RandomFloat()
-                      );
-                   } else {
-                      material = Dielectric(1.5f);
-                   }
-                   m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
-                }
-             }
-          }
+         // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
+         //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
+         m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+            glm::vec3 {-500.0f, 1.0f, 500.0f}                                         /*origin*/,
+            glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
+            glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
+            Lambertian(                                                               /*material*/
+               CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)                  /*texture*/
+            )
+         ));
 
-          // the three main spheres...
-          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3 {0.0f, 2.0f, 0.0f}   /*centre*/,
-             1.0f                          /*radius*/,
-             Dielectric(1.5f)              /*material*/
-          ));
-          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
-             1.0f                             /*radius*/,
-             Lambertian(                      /*material*/
-                Marble(                          /*texture*/
-                   {1.0f, 1.0f, 1.0f}               /*color*/,
-                   4.0f                             /*scale*/,
-                   0.5f                             /*weight*/,
-                   7                                /*depth*/
-                )
-             )
-          ));
-          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-             glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
-             1.0f                              /*radius*/,
-             Metallic(                         /*material*/
-                Marble(                          /*texture*/
-                   {0.7f, 0.6f, 0.5f}               /*color*/,
-                   4.0f                             /*scale*/,
-                   0.04f                             /*weight*/,
-                   7                                /*depth*/
-                ),
-                0.01f                              /*roughness*/
-             )
-          ));
-          break;
+         // small random spheres
+         for (int a = -11; a < 11; a++) {
+            for (int b = -11; b < 11; b++) {
+               float chooseMaterial = RandomFloat();
+               float chooseTexture = RandomFloat();
+               vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
+               if (
+                  (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+                  (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
+                  (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
+               ) {
+                  Material material;
+                  if (chooseMaterial < 0.8) {
+                     // diffuse
+                     if (chooseTexture < 0.33) {
+                        // flatcolor
+                        material = Lambertian(
+                           FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+                        );
+                     } else if (chooseTexture < 0.67) {
+                        // simplex
+                        material = Lambertian(
+                           Simplex3D(
+                              {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
+                              10 * RandomFloat(),
+                              RandomFloat()
+                           )
+                        );
+                     } else {
+                        material = Lambertian(
+                           Turbulence(
+                              {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
+                              10 * RandomFloat(),
+                              RandomFloat(),
+                              static_cast<int>(10 * RandomFloat())
+                           )
+                        );
+                     }
+                  } else if (chooseMaterial < 0.95) {
+                     // metal
+                     material = Metallic(
+                        FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                        0.5f * RandomFloat()
+                     );
+                  } else {
+                     material = DiffuseLight(FlatColor({10.0f, 10.0f, 10.0f}));
+                  }
+                  m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+               }
+            }
+         }
 
-      case EScene::eSphereCubeRotationTest:
+         // the three main spheres...
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3 {0.0f, 2.0f, 0.0f}                /*centre*/,
+            1.0f                                        /*radius*/,
+            DiffuseLight(FlatColor({20.0f, 20.0f, 20.0f})) /*material*/
+
+         ));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
+            1.0f                             /*radius*/,
+            Lambertian(                      /*material*/
+               Marble(                          /*texture*/
+                  {1.0f, 1.0f, 1.0f}               /*color*/,
+                  4.0f                             /*scale*/,
+                  0.5f                             /*weight*/,
+                  7                                /*depth*/
+               )
+            )
+         ));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(
+            glm::vec3 {4.0f, 2.0f, 0.0f}   /*centre*/,
+            1.0f                           /*radius*/,
+            Metallic(                      /*material*/
+               Marble(                        /*texture*/
+                  {0.7f, 0.6f, 0.5f}             /*color*/,
+                  4.0f                           /*scale*/,
+                  0.04f                          /*weight*/,
+                  7                              /*depth*/
+               ),
+               0.01f                          /*roughness*/
+            )
+         ));
+         break;
+      }
+
+      case EScene::eSphereCubeRotationTest: {
          //
          // A sphere and a cube, shaded according to their normals.
          // Note that cube faces should be shaded consistently with the sphere.
          // (e.g. cube facing forward should be shaded same color as the point on the sphere that faces forward)
          m_Scene.AddInstance(std::make_unique<CubeInstance>(
-            glm::vec3{0.0f, 0.0f, 0.0f}                                                 /*centre*/,
+            glm::vec3 {0.0f, 0.0f, 0.0f}                                                 /*centre*/,
             1.0f                                                                        /*sideLength*/,
             glm::vec3 {glm::radians(0.0f), glm::radians(90.0f), glm::radians(45.0f)}    /*rotation*/,
             FlatColor(                                                                  /*material*/
@@ -320,17 +324,19 @@ void RayTracer::CreateScene() {
             )
          ));
          m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3{0.0f, 0.0f, 2.0f}                                        /*centre*/,
+            glm::vec3 {0.0f, 0.0f, 2.0f}                                        /*centre*/,
             1.0f                                                               /*sideLength*/,
             FlatColor(                                                         /*material*/
                Normals()                                                       /*texture*/
-            )                                                                  
+            )
          ));
          break;
+      }
 
-      default:
+      default: {
          // empty scene.  nothing to see here.
          break;
+      }
    }
 }
 
