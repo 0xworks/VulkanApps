@@ -6,7 +6,7 @@ uint32_t Rectangle2DInstance::sm_ModelIndex = ~0;
 Rectangle2D::Rectangle2D() : Model("Assets/Models/Rectangle2D.obj") {}
 
 
-Rectangle2DInstance::Rectangle2DInstance(glm::vec3 origin, glm::vec2 size, glm::vec3 rotateRadians, Material material)
+Rectangle2DInstance::Rectangle2DInstance(glm::vec3 centre, glm::vec2 size, glm::vec3 rotateRadians, Material material)
 	: Instance {
 			sm_ModelIndex,
 			glm::transpose(
@@ -14,11 +14,11 @@ Rectangle2DInstance::Rectangle2DInstance(glm::vec3 origin, glm::vec2 size, glm::
 					glm::rotate(
 						glm::rotate(
 							glm::rotate(
-								glm::translate(glm::identity<glm::mat4x4>(), origin),
+								glm::translate(glm::identity<glm::mat4x4>(), centre),
 								rotateRadians.x,
 								{1.0f, 0.0f, 0.0f}
 							),
-							rotateRadians.y,
+							-rotateRadians.y,  // y axis flipped for vulkan
 							{0.0f, 1.0f, 0.0f}
 						),
 						rotateRadians.z,

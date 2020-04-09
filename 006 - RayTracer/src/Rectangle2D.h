@@ -11,7 +11,7 @@ public:
 
 class Rectangle2DInstance : public Instance {
 public:
-   Rectangle2DInstance(glm::vec3 origin, glm::vec2 size, glm::vec3 rotationRadians, Material material);
+   Rectangle2DInstance(glm::vec3 centre, glm::vec2 size, glm::vec3 rotationRadians, Material material);
 
 public:
    static void SetModelIndex(uint32_t modelIndex);

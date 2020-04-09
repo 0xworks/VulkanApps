@@ -10,12 +10,6 @@ using uint = uint32_t;
 
 
 inline
-Material FlatColor(Texture texture) {
-   return Material {MATERIAL_FLATCOLOR, 0.0, 0.0, texture.id, texture.param1, texture.param2};
-}
-
-
-inline
 Material Lambertian(Texture texture) {
    return Material {MATERIAL_LAMBERTIAN, 0.0, 0.0, texture.id, texture.param1, texture.param2};
 }

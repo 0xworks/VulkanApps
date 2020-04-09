@@ -5,7 +5,7 @@
 
 using uint = uint32_t;
 #include "Constants.glsl"
-#include "Cube.h"
+#include "Box.h"
 #include "GeometryInstance.h"
 #include "Offset.h"
 #include "Rectangle2D.h"
@@ -124,7 +124,7 @@ void RayTracer::CreateScene() {
    Sphere::SetShaderHitGroupIndex(eSphereHitGroup - eFirstHitGroup);
 
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
-   CubeInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Cube>()));
+   BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>()));
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    // HACK:
@@ -132,204 +132,29 @@ void RayTracer::CreateScene() {
    enum class EScene {
       eRayTracingInOneWeekend,
       eRayTracingTheNextWeekTexturesAndLight,
-      eRayTracingInOneWeekendOnPillar,
-      eSphereCubeRotationTest
+      eCornellBox,
+      eSphereBoxRotationTest
    };
-   EScene scene = EScene::eRayTracingTheNextWeekTexturesAndLight;
+   EScene scene = EScene::eCornellBox;
 
    switch (scene) {
       case EScene::eRayTracingInOneWeekend: {
-
-         m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
-         m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
-
-         // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
-         //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
-         m_Scene.AddInstance(std::make_unique<CubeInstance>(
-            glm::vec3 {0.0f, -999.0f, 0.0f}       /*centre*/,
-            2000.0f                               /*side length*/,
-            glm::vec3 {0.0f}                     /*rotation*/,
-            Lambertian(                         /*material*/
-               FlatColor({0.5, 0.5, 0.5})
-            )
-         ));
-
-         // small random spheres
-         for (int a = -11; a < 11; a++) {
-            for (int b = -11; b < 11; b++) {
-               float chooseMaterial = RandomFloat();
-               vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
-               if (
-                  (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
-                  (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
-                  (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
-               ) {
-                  Material material;
-                  if (chooseMaterial < 0.8) {
-                     // diffuse
-                     material = Lambertian(
-                        FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
-                     );
-                  } else if (chooseMaterial < 0.95) {
-                     // metal
-                     material = Metallic(
-                        FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
-                        0.5f * RandomFloat()
-                     );
-                  } else {
-                     material = Dielectric(1.5f);
-                  }
-                  m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
-               }
-            }
-         }
-
-         // the three main spheres...
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {0.0f, 2.0f, 0.0f}   /*centre*/,
-            1.0f                           /*radius*/,
-            Dielectric(1.5f)               /*material*/
-         ));
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
-            1.0f                              /*radius*/,
-            Lambertian(                       /*material*/
-               FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
-            )
-         ));
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
-            1.0f                               /*radius*/,
-            Metallic(                          /*material*/
-               FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
-               0.01f                              /*roughness*/
-            )
-         ));
+         CreateSceneRayTracingInOneWeekend();
          break;
       }
 
       case EScene::eRayTracingTheNextWeekTexturesAndLight: {
-         m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
-         m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
-
-         // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
-         //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
-         m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-            glm::vec3 {-500.0f, 1.0f, 500.0f}                                         /*origin*/,
-            glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
-            glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
-            Lambertian(                                                               /*material*/
-               CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)                  /*texture*/
-            )
-         ));
-
-         // small random spheres
-         for (int a = -11; a < 11; a++) {
-            for (int b = -11; b < 11; b++) {
-               float chooseMaterial = RandomFloat();
-               float chooseTexture = RandomFloat();
-               vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
-               if (
-                  (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
-                  (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
-                  (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
-               ) {
-                  Material material;
-                  if (chooseMaterial < 0.8) {
-                     // diffuse
-                     if (chooseTexture < 0.33) {
-                        // flatcolor
-                        material = Lambertian(
-                           FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
-                        );
-                     } else if (chooseTexture < 0.67) {
-                        // simplex
-                        material = Lambertian(
-                           Simplex3D(
-                              {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
-                              10 * RandomFloat(),
-                              RandomFloat()
-                           )
-                        );
-                     } else {
-                        material = Lambertian(
-                           Turbulence(
-                              {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
-                              10 * RandomFloat(),
-                              RandomFloat(),
-                              static_cast<int>(10 * RandomFloat())
-                           )
-                        );
-                     }
-                  } else if (chooseMaterial < 0.95) {
-                     // metal
-                     material = Metallic(
-                        FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
-                        0.5f * RandomFloat()
-                     );
-                  } else {
-                     material = DiffuseLight(FlatColor({10.0f, 10.0f, 10.0f}));
-                  }
-                  m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
-               }
-            }
-         }
-
-         // the three main spheres...
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {0.0f, 2.0f, 0.0f}                /*centre*/,
-            1.0f                                        /*radius*/,
-            DiffuseLight(FlatColor({20.0f, 20.0f, 20.0f})) /*material*/
-
-         ));
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
-            1.0f                             /*radius*/,
-            Lambertian(                      /*material*/
-               Marble(                          /*texture*/
-                  {1.0f, 1.0f, 1.0f}               /*color*/,
-                  4.0f                             /*scale*/,
-                  0.5f                             /*weight*/,
-                  7                                /*depth*/
-               )
-            )
-         ));
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {4.0f, 2.0f, 0.0f}   /*centre*/,
-            1.0f                           /*radius*/,
-            Metallic(                      /*material*/
-               Marble(                        /*texture*/
-                  {0.7f, 0.6f, 0.5f}             /*color*/,
-                  4.0f                           /*scale*/,
-                  0.04f                          /*weight*/,
-                  7                              /*depth*/
-               ),
-               0.01f                          /*roughness*/
-            )
-         ));
+         CreateSceneRayTracingTheNextWeekTexturesAndLight();
          break;
       }
 
-      case EScene::eSphereCubeRotationTest: {
-         //
-         // A sphere and a cube, shaded according to their normals.
-         // Note that cube faces should be shaded consistently with the sphere.
-         // (e.g. cube facing forward should be shaded same color as the point on the sphere that faces forward)
-         m_Scene.AddInstance(std::make_unique<CubeInstance>(
-            glm::vec3 {0.0f, 0.0f, 0.0f}                                                 /*centre*/,
-            1.0f                                                                        /*sideLength*/,
-            glm::vec3 {glm::radians(0.0f), glm::radians(90.0f), glm::radians(45.0f)}    /*rotation*/,
-            FlatColor(                                                                  /*material*/
-               Normals()                                                                /*texture*/
-            )
-         ));
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(
-            glm::vec3 {0.0f, 0.0f, 2.0f}                                        /*centre*/,
-            1.0f                                                               /*sideLength*/,
-            FlatColor(                                                         /*material*/
-               Normals()                                                       /*texture*/
-            )
-         ));
+      case EScene::eCornellBox: {
+         CreateSceneCornellBox();
+         break;
+      }
+
+      case EScene::eSphereBoxRotationTest: {
+         CreateSceneBoxRotationTest();
          break;
       }
 
@@ -338,6 +163,277 @@ void RayTracer::CreateScene() {
          break;
       }
    }
+}
+
+
+void RayTracer::CreateSceneRayTracingInOneWeekend() {
+   m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
+   m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
+
+   // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
+   //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(
+      glm::vec3{0.0f, -999.0f, 0.0f}       /*centre*/,
+      glm::vec3 {2000.0f}                  /*size*/,
+      glm::vec3 {0.0f}                     /*rotation*/,
+      Lambertian(                         /*material*/
+         FlatColor({0.5, 0.5, 0.5})
+      )
+   ));
+
+   // small random spheres
+   for (int a = -11; a < 11; a++) {
+      for (int b = -11; b < 11; b++) {
+         float chooseMaterial = RandomFloat();
+         vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
+         if (
+            (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+            (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
+            (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
+         ) {
+            Material material;
+            if (chooseMaterial < 0.8) {
+               // diffuse
+               material = Lambertian(
+                  FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+               );
+            } else if (chooseMaterial < 0.95) {
+               // metal
+               material = Metallic(
+                  FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                  0.5f * RandomFloat()
+               );
+            } else {
+               material = Dielectric(1.5f);
+            }
+            m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+         }
+      }
+   }
+
+   // the three main spheres...
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {0.0f, 2.0f, 0.0f}   /*centre*/,
+      1.0f                           /*radius*/,
+      Dielectric(1.5f)               /*material*/
+   ));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
+      1.0f                              /*radius*/,
+      Lambertian(                       /*material*/
+         FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
+      )
+   ));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
+      1.0f                               /*radius*/,
+      Metallic(                          /*material*/
+         FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
+         0.01f                              /*roughness*/
+      )
+   ));
+}
+
+
+void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
+   m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
+   m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
+
+   // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
+   //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+      glm::vec3 {-500.0f, 1.0f, 500.0f}                                         /*origin*/,
+      glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
+      glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
+      Lambertian(                                                               /*material*/
+         CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f)                  /*texture*/
+      )
+   ));
+
+   // small random spheres
+   for (int a = -11; a < 11; a++) {
+      for (int b = -11; b < 11; b++) {
+         float chooseMaterial = RandomFloat();
+         float chooseTexture = RandomFloat();
+         vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
+         if (
+            (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
+            (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
+            (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
+         ) {
+            Material material;
+            if (chooseMaterial < 0.8) {
+               // diffuse
+               if (chooseTexture < 0.33) {
+                  // flatcolor
+                  material = Lambertian(
+                     FlatColor({RandomFloat() * RandomFloat(),RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()})
+                  );
+               } else if (chooseTexture < 0.67) {
+                  // simplex
+                  material = Lambertian(
+                     Simplex3D(
+                        {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
+                        10 * RandomFloat(),
+                        RandomFloat()
+                     )
+                  );
+               } else {
+                  material = Lambertian(
+                     Turbulence(
+                        {RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat(), RandomFloat() * RandomFloat()},
+                        10 * RandomFloat(),
+                        RandomFloat(),
+                        static_cast<int>(10 * RandomFloat())
+                     )
+                  );
+               }
+            } else if (chooseMaterial < 0.95) {
+               // metal
+               material = Metallic(
+                  FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                  0.5f * RandomFloat()
+               );
+            } else {
+               material = DiffuseLight(FlatColor({10.0f, 10.0f, 10.0f}));
+            }
+            m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
+         }
+      }
+   }
+
+   // the three main spheres...
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {0.0f, 2.0f, 0.0f}                /*centre*/,
+      1.0f                                        /*radius*/,
+      DiffuseLight(FlatColor({20.0f, 20.0f, 20.0f})) /*material*/
+
+   ));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
+      1.0f                             /*radius*/,
+      Lambertian(                      /*material*/
+         Marble(                          /*texture*/
+            {1.0f, 1.0f, 1.0f}               /*color*/,
+            4.0f                             /*scale*/,
+            0.5f                             /*weight*/,
+            7                                /*depth*/
+         )
+      )
+   ));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {4.0f, 2.0f, 0.0f}   /*centre*/,
+      1.0f                           /*radius*/,
+      Metallic(                      /*material*/
+         Marble(                        /*texture*/
+            {0.7f, 0.6f, 0.5f}             /*color*/,
+            4.0f                           /*scale*/,
+            0.04f                          /*weight*/,
+            7                              /*depth*/
+         ),
+         0.01f                          /*roughness*/
+      )
+   ));
+}
+
+
+void RayTracer::CreateSceneBoxRotationTest() {
+   //
+   // A sphere and a box, shaded according to their normals.
+   // Note that box faces should be shaded consistently with the sphere.
+   // (e.g. box facing forward should be shaded same color as the point on the sphere that faces forward)
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(
+      glm::vec3{0.0f, 0.0f, 0.0f}                                              /*centre*/,
+      glm::vec3{1.0f}                                                          /*size*/,
+      glm::vec3{glm::radians(0.0f), glm::radians(90.0f), glm::radians(45.0f)}  /*rotation*/,
+      DiffuseLight(                                                            /*material*/
+         Normals()                                                                /*texture*/
+      )
+   ));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {0.0f, 0.0f, 2.0f}                          /*centre*/,
+      1.0f                                                  /*radius*/,
+      DiffuseLight(                                         /*material*/
+         Normals()                                             /*texture*/
+      )
+   ));
+}
+
+
+void RayTracer::CreateSceneCornellBox() {
+   m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
+   m_Scene.SetZenithColor({0.f, 0.0f, 0.0f});
+
+   m_Eye = {0.0f, 0.0f, 800.0f};
+   m_Direction = {0.0f, 0.0f, -150.0f};
+
+   Material red = Lambertian(FlatColor({0.65f, 0.05f, 0.05f}));
+   Material green = Lambertian(FlatColor({0.12f, 0.45f, 0.15f}));
+   Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
+   Material light = DiffuseLight(FlatColor({15.0f, 15.0f, 15.0f}));
+
+   glm::vec3 size = {555.0f, 555.0f, 555.0f};
+   glm::vec3 halfSize = size / 2.0f;
+   glm::vec2 lightSize = {130.0f, 105.0f};
+
+   glm::vec3 clockwiseY90 = {glm::radians(0.0f), glm::radians(90.0f), glm::radians(0.0f)};
+   glm::vec3 counterClockwiseY90 = {glm::radians(0.0f), glm::radians(-90.0f), glm::radians(0.0f)};
+
+   glm::vec3 clockwiseX90 = {glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)};
+   glm::vec3 counterClockwiseX90 = {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)};
+
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+      glm::vec3{-halfSize.x, 0.0f, -halfSize.z},
+      glm::vec2{size.x, size.y},
+      counterClockwiseY90,
+      green
+   ));
+
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+      glm::vec3{halfSize.x, 0.0f, -halfSize.z},
+      glm::vec2{size.x, size.y},
+      clockwiseY90,
+      red
+   ));
+
+    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+       glm::vec3{0.0f, halfSize.y, -halfSize.z},
+       glm::vec2{size.x, size.y},
+       clockwiseX90,
+       white
+    ));
+ 
+    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+       glm::vec3{0.0f, -halfSize.y, -halfSize.z},
+       glm::vec2{size.x, size.y},
+       counterClockwiseX90,
+       white
+    ));
+ 
+    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+       glm::vec3{0.0f, 0.0f, -size.z},
+       glm::vec2{size.x, size.y},
+       glm::vec3{0.0f},
+       white
+    ));
+ 
+    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+       glm::vec3{0.0f, halfSize.y - 0.1f, -halfSize.z},
+       lightSize,
+       clockwiseX90,
+       light
+    ));
+
+    glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
+    glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, -(size.y - box1Size.y) * 0.5f, -halfSize.z * 1.25};
+    glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
+    m_Scene.AddInstance(std::make_unique<BoxInstance>(box1Centre, box1Size, box1Rotation,white));
+
+    glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
+    glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, -(size.y - box2Size.y) * 0.5f, -halfSize.z * 0.65};
+    glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
+    m_Scene.AddInstance(std::make_unique<BoxInstance>(box2Centre, box2Size, box2Rotation, white));
+
 }
 
 
@@ -1250,8 +1346,9 @@ void RayTracer::Update(double deltaTime) {
 void RayTracer::RenderFrame() {
 
    glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
+   // flip y axis for vulkan
    projection[1][1] *= -1;
-   glm::mat4 modelView = glm::lookAt(m_Eye, m_Eye + m_Direction, m_Up);
+   glm::mat4 modelView = glm::lookAt(m_Eye, m_Eye + glm::normalize(m_Direction), m_Up);
 
    UniformBufferObject ubo = {
       glm::inverse(modelView),
@@ -1276,3 +1373,5 @@ void RayTracer::OnWindowResized() {
    RecordCommandBuffers();
    m_AccumulatedImageCount = 0;
 }
+
+

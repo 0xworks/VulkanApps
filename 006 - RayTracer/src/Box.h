@@ -3,15 +3,15 @@
 #include "Model.h"
 #include "Instance.h"
 
-class Cube : public Model {
+class Box : public Model {
 public:
-   Cube();
+   Box();
 };
 
 
-class CubeInstance : public Instance {
+class BoxInstance : public Instance {
 public:
-   CubeInstance(glm::vec3 centre, float sideLength, glm::vec3 rotationRadians, Material material);
+   BoxInstance(glm::vec3 centre, glm::vec3 size, glm::vec3 rotationRadians, Material material);
 
 public:
    static void SetModelIndex(uint32_t modelIndex);

@@ -1,12 +1,12 @@
-#include "Cube.h"
+#include "Box.h"
 #include "Core.h"
 
-uint32_t CubeInstance::sm_ModelIndex = ~0;
+uint32_t BoxInstance::sm_ModelIndex = ~0;
 
-Cube::Cube() : Model("Assets/Models/Cube.obj") {}
+Box::Box() : Model("Assets/Models/Box.obj") {}
 
 
-CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, glm::vec3 rotateRadians, Material material)
+BoxInstance::BoxInstance(glm::vec3 centre, glm::vec3 size, glm::vec3 rotateRadians, Material material)
 : Instance {
       sm_ModelIndex,
       glm::transpose(
@@ -18,13 +18,13 @@ CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, glm::vec3 rotateR
                      rotateRadians.x,
                      {1.0f, 0.0f, 0.0f}
                   ),
-                  rotateRadians.y,
+                  -rotateRadians.y,  // y axis flipped for vulkan
                   {0.0f, 1.0f, 0.0f}
                ),
                rotateRadians.z,
                {0.0f, 0.0f, 1.0f}
             ),
-            glm::vec3 {sideLength}
+            size
          )
       ),
       std::move(material)
@@ -34,6 +34,6 @@ CubeInstance::CubeInstance(glm::vec3 centre, float sideLength, glm::vec3 rotateR
 }
 
 
-void CubeInstance::SetModelIndex(uint32_t modelIndex) {
+void BoxInstance::SetModelIndex(uint32_t modelIndex) {
    sm_ModelIndex = modelIndex;
 }

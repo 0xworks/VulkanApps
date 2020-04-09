@@ -94,17 +94,12 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
    Material material = materials[materialIndex];
 
    switch(material.type) {
-      case MATERIAL_FLATCOLOR: {
-         // for debugging.  no emission or scattering
-         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
-         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(0.0), randomSeed);
-      }
 
       case MATERIAL_LAMBERTIAN: {
          const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
          const vec3 target = hitPoint + normal + RandomUnitVector(randomSeed);
-         const vec4 scatterDirection = vec4(target - hitPoint, 1);
-         return RayPayload(attenuationAndDistance, vec4(0.0), scatterDirection, randomSeed);
+         const vec3 scatterDirection = target - hitPoint;
+         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, dot(direction, normal) < 0), randomSeed);
       }
 
       case MATERIAL_METALLIC: {

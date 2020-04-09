@@ -2,11 +2,10 @@
 // Shared by C++ application code and glsl shader code.
 //
 
-#define MATERIAL_FLATCOLOR    0
-#define MATERIAL_LAMBERTIAN   1
-#define MATERIAL_METALLIC     2
-#define MATERIAL_DIELECTRIC   3
-#define MATERIAL_DIFFUSELIGHT 4
+#define MATERIAL_LAMBERTIAN   0
+#define MATERIAL_METALLIC     1
+#define MATERIAL_DIELECTRIC   2
+#define MATERIAL_DIFFUSELIGHT 3
 
 struct Material {
    uint type;

@@ -14,8 +14,8 @@ set(
 
 set(
    src_files
-   "src/Cube.h"
-   "src/Cube.cpp"
+   "src/Box.h"
+   "src/Box.cpp"
    "src/Instance.h"
    "src/Instance.cpp"
    "src/Material.h"
@@ -62,7 +62,7 @@ set(
 
 set(
    model_files
-   "Assets/Models/Cube.obj"
+   "Assets/Models/Box.obj"
    "Assets/Models/Rectangle2D.obj"
    "Assets/Models/Sphere.obj"
 )
@@ -85,16 +85,6 @@ source_group("src" FILES ${src_files})
 source_group("Assets/Shaders" FILES ${shader_header_files} ${shader_src_files})
 
 add_executable(${target_name} ${src_files} ${font_files} ${model_files} ${shader_header_files} ${shader_src_files} ${texture_files} )
-
-if (WIN32)
-   target_compile_definitions(
-      ${target_name} PRIVATE
-      UNICODE
-      _UNICODE
-      WIN32_LEAN_AND_MEAN
-      NOMINMAX
-   )
-endif()
 
 target_include_directories(
    ${target_name} PRIVATE

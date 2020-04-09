@@ -71,6 +71,12 @@ public:
    virtual void OnWindowResized() override;
 
 private:
+   void CreateSceneRayTracingInOneWeekend();
+   void CreateSceneRayTracingTheNextWeekTexturesAndLight();
+   void CreateSceneBoxRotationTest();
+   void CreateSceneCornellBox();
+
+private:
    Scene m_Scene;
    std::unique_ptr<Vulkan::Buffer> m_VertexBuffer;
    std::unique_ptr<Vulkan::IndexBuffer> m_IndexBuffer;
