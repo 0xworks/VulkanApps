@@ -114,14 +114,15 @@ void RayTracer::CreateScene() {
 
    Model::SetShaderHitGroupIndex(eTrianglesHitGroup - eFirstHitGroup);
    Sphere::SetShaderHitGroupIndex(eSphereHitGroup - eFirstHitGroup);
+   Box::SetShaderHitGroupIndex(eBoxHitGroup - eFirstHitGroup);
 
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
    BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>()));
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
-   CreateSceneRayTracingInOneWeekend();
+   //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
-   //CreateSceneCornellBoxWithBoxes();
+   CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneBoxRotationTest();
 }
@@ -329,7 +330,7 @@ void RayTracer::CreateSceneBoxRotationTest() {
    m_Scene.AddInstance(std::make_unique<BoxInstance>(
       glm::vec3{0.0f, 0.0f, 0.0f}                                              /*centre*/,
       glm::vec3{1.0f}                                                          /*size*/,
-      glm::vec3{glm::radians(0.0f), glm::radians(90.0f), glm::radians(45.0f)}  /*rotation*/,
+      glm::vec3{glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
       DiffuseLight(                                                            /*material*/
          Normals()                                                                /*texture*/
       )
@@ -413,7 +414,7 @@ void RayTracer::CreateSceneCornellBoxWithBoxes() {
    glm::vec3 size = {555.0f, 555.0f, 555.0f};
    glm::vec3 halfSize = size / 2.0f;
 
-   Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
+   Material white = Lambertian(FlatColor({0.73, 0.73, 0.73}));
 
    CreateCornellBox(size);
 
@@ -859,8 +860,10 @@ void RayTracer::CreatePipeline() {
       eRayGen,
       eMiss,
       eTrianglesClosestHit,
-      eSphereClosestHit,
       eSphereIntersection,
+      eSphereClosestHit,
+      eBoxIntersection,
+      eBoxClosestHit,
 
       eNumShaders
    };
@@ -891,6 +894,14 @@ void RayTracer::CreatePipeline() {
       nullptr                                                                      /*pSpecializationInfo*/
    };
 
+   shaderStages[eSphereIntersection] = vk::PipelineShaderStageCreateInfo {
+      {}                                                                           /*flags*/,
+      vk::ShaderStageFlagBits::eIntersectionNV                                     /*stage*/,
+      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Sphere.rint.spv"))       /*module*/,
+      "main"                                                                       /*name*/,
+      nullptr                                                                      /*pSpecializationInfo*/
+   };
+
    shaderStages[eSphereClosestHit] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
       vk::ShaderStageFlagBits::eClosestHitNV                                       /*stage*/,
@@ -899,13 +910,22 @@ void RayTracer::CreatePipeline() {
       nullptr                                                                      /*pSpecializationInfo*/
    };
 
-   shaderStages[eSphereIntersection] = vk::PipelineShaderStageCreateInfo {
+   shaderStages[eBoxIntersection] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
       vk::ShaderStageFlagBits::eIntersectionNV                                     /*stage*/,
-      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Sphere.rint.spv"))       /*module*/,
+      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Box.rint.spv"))          /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
    };
+
+   shaderStages[eBoxClosestHit] = vk::PipelineShaderStageCreateInfo {
+      {}                                                                           /*flags*/,
+      vk::ShaderStageFlagBits::eClosestHitNV                                       /*stage*/,
+      CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Box.rchit.spv"))         /*module*/,
+      "main"                                                                       /*name*/,
+      nullptr                                                                      /*pSpecializationInfo*/
+   };
+
 
    std::array<vk::RayTracingShaderGroupCreateInfoNV, eNumShaderGroups> groups;
 
@@ -936,9 +956,17 @@ void RayTracer::CreatePipeline() {
    groups[eSphereHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
       vk::RayTracingShaderGroupTypeNV::eProceduralHitGroup /*type*/,
       VK_SHADER_UNUSED_NV                       /*generalShader*/,
-      eSphereClosestHit                          /*closestHitShader*/,
+      eSphereClosestHit                         /*closestHitShader*/,
       VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      eSphereIntersection                        /*intersectionShader*/
+      eSphereIntersection                       /*intersectionShader*/
+   };
+
+   groups[eBoxHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
+      vk::RayTracingShaderGroupTypeNV::eProceduralHitGroup /*type*/,
+      VK_SHADER_UNUSED_NV                       /*generalShader*/,
+      eBoxClosestHit                            /*closestHitShader*/,
+      VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
+      eBoxIntersection                          /*intersectionShader*/
    };
 
    vk::RayTracingPipelineCreateInfoNV pipelineCI = {

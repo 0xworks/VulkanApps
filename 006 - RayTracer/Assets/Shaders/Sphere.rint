@@ -15,20 +15,13 @@ layout(set = 0, binding = BINDING_UNIFORMBUFFER) readonly uniform UBO {
 hitAttributeNV vec4 unused;   // you must declare a hitAttributeNV otherwise the shader does not work properly!
 
 void main() {
-   const vec3 centre = vec3(0.0);
-   const float radius = 1.0;
-
-   const vec3 origin = gl_ObjectRayOriginNV;
-   const vec3 direction = gl_ObjectRayDirectionNV;
-   const float tMin = gl_RayTminNV;
-   const float tMax = gl_RayTmaxNV;
 
    // https://en.wikipedia.org/wiki/Quadratic_formula
 
-   const vec3 oc = origin - centre;
-   const float a = dot(direction, direction);
-   const float b = dot(oc, direction);
-   const float c = dot(oc, oc) - radius * radius;
+   const vec3 oc = gl_ObjectRayOriginNV; // centre = 0
+   const float a = dot(gl_ObjectRayDirectionNV, gl_ObjectRayDirectionNV);
+   const float b = dot(oc, gl_ObjectRayDirectionNV);
+   const float c = dot(oc, oc) - 1.0; // radius = 1
    const float discriminant = b * b - a * c;
 
    if (discriminant >= 0) {
@@ -50,13 +43,13 @@ void main() {
             ),
             ubo.accumulatedFrameCount
          );
-         const float hitDistance = max(t1, tMin) + material.materialParameter1 * log(RandomFloat(seed));
-         if ((hitDistance <= t2) && (t2 < tMax)) {
+         const float hitDistance = max(t1, gl_RayTminNV) + material.materialParameter1 * log(RandomFloat(seed));
+         if ((hitDistance <= t2) && (t2 < gl_RayTmaxNV)) {
             reportIntersectionNV(hitDistance, 0);
          }
       } else {
-         if ((tMin <= t1 && t1 < tMax) || (tMin <= t2 && t2 < tMax)) {
-            reportIntersectionNV((tMin <= t1 && t1 < tMax) ? t1 : t2, 0);
+         if ((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) || (gl_RayTminNV <= t2 && t2 < gl_RayTmaxNV)) {
+            reportIntersectionNV((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) ? t1 : t2, 0);
          }
       }
    }

@@ -1,0 +1,62 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_NV_ray_tracing : require
+
+#include "Bindings.glsl"
+#include "Material.glsl"
+#include "Random.glsl"
+#include "UniformBufferObject.glsl"
+
+layout(set = 0, binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
+layout(set = 0, binding = BINDING_UNIFORMBUFFER) readonly uniform UBO {
+   UniformBufferObject ubo;
+};
+
+hitAttributeNV vec4 unused;   // you must declare a hitAttributeNV otherwise the shader does not work properly!
+
+
+void IntersectXY(const float k, const uint side) {
+   const float t = (k - gl_ObjectRayOriginNV.z) / gl_ObjectRayDirectionNV.z;
+   if (t >= gl_RayTminNV && t < gl_RayTmaxNV) {
+      const vec3 p = gl_ObjectRayOriginNV + t * gl_ObjectRayDirectionNV;
+      if ((p.x >= -0.5) && (p.x < 0.5) && (p.y >= -0.5) && (p.y < 0.5)) {
+         reportIntersectionNV(t, side);
+      }
+   }
+}
+
+
+void IntersectXZ(const float k, const uint side) {
+   const float t = (k - gl_ObjectRayOriginNV.y) / gl_ObjectRayDirectionNV.y;
+   if (t >= gl_RayTminNV && t < gl_RayTmaxNV) {
+      const vec3 p = gl_ObjectRayOriginNV + t * gl_ObjectRayDirectionNV;
+      if ((p.x >= -0.5) && (p.x < 0.5) && (p.z >= -0.5) && (p.z < 0.5)) {
+         reportIntersectionNV(t, side);
+      }
+   }
+}
+
+
+void IntersectYZ(const float k, const uint side) {
+   const float t = (k - gl_ObjectRayOriginNV.x) / gl_ObjectRayDirectionNV.x;
+   if (t >= gl_RayTminNV && t < gl_RayTmaxNV) {
+      const vec3 p = gl_ObjectRayOriginNV + t * gl_ObjectRayDirectionNV;
+      if ((p.y >= -0.5) && (p.y < 0.5) && (p.z >= -0.5) && (p.z < 0.5)) {
+         reportIntersectionNV(t, side);
+      }
+   }
+}
+
+
+void main() {
+   const float k = 0.5; // box goes from -0.5 to +0.5 in each axis
+
+   IntersectXY(-k, 0);
+   IntersectXY(k, 1);
+
+   IntersectXZ(-k, 2);
+   IntersectXZ(k, 3);
+
+   IntersectYZ(-k, 4);
+   IntersectYZ(k, 5);
+}

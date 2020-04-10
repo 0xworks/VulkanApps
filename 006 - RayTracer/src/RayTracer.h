@@ -99,6 +99,7 @@ private:
       eFirstHitGroup,
       eTrianglesHitGroup = eFirstHitGroup,
       eSphereHitGroup,
+      eBoxHitGroup,
 
       eNumShaderGroups
    };

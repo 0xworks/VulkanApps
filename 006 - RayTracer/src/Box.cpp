@@ -1,9 +1,25 @@
 #include "Box.h"
 #include "Core.h"
 
+uint32_t Box::sm_ShaderHitGroupIndex = ~0;
 uint32_t BoxInstance::sm_ModelIndex = ~0;
 
-Box::Box() : Model("Assets/Models/Box.obj") {}
+Box::Box() : Model("Assets/Models/Box.obj", Box::sm_ShaderHitGroupIndex) {}
+
+
+bool Box::IsProcedural() const {
+   return true;
+}
+
+
+std::array<glm::vec3, 2> Box::GetBoundingBox() const {
+   return {glm::vec3{-0.5f, -0.5f, -0.5f}, glm::vec3{0.5f, 0.5f, 0.5f}};
+}
+
+
+void Box::SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
+   sm_ShaderHitGroupIndex = shaderHitGroupIndex;
+}
 
 
 BoxInstance::BoxInstance(const glm::vec3& centre, const glm::vec3& size, const glm::vec3& rotateRadians, const Material& material)

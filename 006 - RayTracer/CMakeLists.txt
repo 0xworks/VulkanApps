@@ -49,6 +49,8 @@ set(
 
 set(
    shader_src_files
+   "Assets/Shaders/Box.rchit"
+   "Assets/Shaders/Box.rint"
    "Assets/Shaders/RayTrace.rgen"
    "Assets/Shaders/RayTrace.rmiss"
    "Assets/Shaders/Sphere.rchit"
