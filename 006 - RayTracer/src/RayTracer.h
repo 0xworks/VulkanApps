@@ -74,7 +74,10 @@ private:
    void CreateSceneRayTracingInOneWeekend();
    void CreateSceneRayTracingTheNextWeekTexturesAndLight();
    void CreateSceneBoxRotationTest();
-   void CreateSceneCornellBox();
+   void CreateCornellBox(const glm::vec3 size);
+   void CreateSceneCornellBoxWithBoxes();
+   void CreateSceneCornellBoxWithSmokeBoxes();
+
 
 private:
    Scene m_Scene;

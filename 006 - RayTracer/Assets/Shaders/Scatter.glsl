@@ -4,8 +4,11 @@
 #include "SNoise.glsl"
 #include "Texture.glsl"
 
+layout(set = 0, binding = BINDING_TLAS) uniform accelerationStructureNV world;
 layout(binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
 //layout(set = 0, binding = BINDING_TEXTUREBUFFER) readonly buffer TextureArray { SamplerSomething textures[]; };
+
+layout(location = 1) rayPayloadNV RayPayload ray1;
 
 float Schlick(float cosine, float refractiveIndex) {
     float r0 = (1 - refractiveIndex) / (1 + refractiveIndex);
@@ -71,15 +74,15 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
       }
 
       case TEXTURE_NORMALS: {
-         return (vec3(1.0f) + normal) / 2.0f;
+         return (vec3(1.0) + normal) / 2.0;
       }
 
       case TEXTURE_UV: {
-         return vec3(texCoord, 0.0f);
+         return vec3(texCoord, 0.0);
       }
 
       case TEXTURE_RED: {
-         return vec3(1.0f, 0.0f, 0.0f);
+         return vec3(1.0, 0.0, 0.0);
       }
 
       default: {
@@ -90,7 +93,7 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 }
 
 
-RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, uint randomSeed) {
+RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, uint randomSeed) {
    Material material = materials[materialIndex];
 
    switch(material.type) {
@@ -99,12 +102,12 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
          const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
          const vec3 target = hitPoint + normal + RandomUnitVector(randomSeed);
          const vec3 scatterDirection = target - hitPoint;
-         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, dot(direction, normal) < 0), randomSeed);
+         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, dot(gl_WorldRayDirectionNV.xyz, normal) < 0), randomSeed);
       }
 
       case MATERIAL_METALLIC: {
          const vec3 color = Color(hitPoint, normal, texCoord, material);
-         const vec3 scatterDirection = reflect(direction, normal) + material.roughness * RandomInUnitSphere(randomSeed);
+         const vec3 scatterDirection = reflect(gl_WorldRayDirectionNV.xyz, normal) + material.materialParameter1 * RandomInUnitSphere(randomSeed);
          return RayPayload(vec4(color, gl_HitTNV), vec4(0.0), vec4(scatterDirection, dot(scatterDirection, normal) > 0), randomSeed);
       }
 
@@ -113,24 +116,24 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
          float ni_over_nt;
          float reflect_prob;
          float cosine;
-         if (dot(direction, normal) > 0) {
+         if (dot(gl_WorldRayDirectionNV.xyz, normal) > 0) {
             outward_normal = -normal;
-            ni_over_nt = material.refractiveIndex;
-            cosine = ni_over_nt * dot(direction, normal) / length(direction);
+            ni_over_nt = material.materialParameter1;
+            cosine = ni_over_nt * dot(gl_WorldRayDirectionNV.xyz, normal) / length(gl_WorldRayDirectionNV.xyz);
          } else {
             outward_normal = normal;
-            ni_over_nt = 1.0 / material.refractiveIndex;
-            cosine = -dot(direction, normal) / length(direction);
+            ni_over_nt = 1.0 / material.materialParameter1;
+            cosine = -dot(gl_WorldRayDirectionNV.xyz, normal) / length(gl_WorldRayDirectionNV.xyz);
          }
-         const vec3 refracted = refract(direction, outward_normal, ni_over_nt);
+         const vec3 refracted = refract(gl_WorldRayDirectionNV.xyz, outward_normal, ni_over_nt);
          const vec4 attenuationAndDistance = vec4(1.0, 1.0, 1.0, gl_HitTNV);
          if(dot(refracted, refracted) > 0) {
-            reflect_prob = Schlick(cosine, material.refractiveIndex);
+            reflect_prob = Schlick(cosine, material.materialParameter1);
          } else {
             reflect_prob = 1.0;
          }
          if(RandomFloat(randomSeed) < reflect_prob) {
-            const vec3 reflected = reflect(direction, normal);
+            const vec3 reflected = reflect(gl_WorldRayDirectionNV.xyz, normal);
             return RayPayload(attenuationAndDistance, vec4(0.0), vec4(reflected, 1), randomSeed);
          }
          return RayPayload(attenuationAndDistance, vec4(0.0), vec4(refracted, 1), randomSeed);
@@ -138,6 +141,48 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
 
       case MATERIAL_DIFFUSELIGHT: {
          return RayPayload(vec4(0.0, 0.0, 0.0, gl_HitTNV), vec4(Color(hitPoint, normal, texCoord, material), 0.0), vec4(0.0), randomSeed);
+      }
+
+      case MATERIAL_SMOKE: {
+         if(dot(gl_WorldRayDirectionNV.xyz, normal) > 0.0) {
+            // ray came from inside object.
+            // work out how far (from ray origin) before scattering occurs, move hit point to there, and then scatter.
+            const float hitDistance = material.materialParameter1 * log(RandomFloat(randomSeed));
+            if(hitDistance < gl_HitTNV) {
+               const vec3 newHitPoint = gl_WorldRayOriginNV + hitDistance * gl_WorldRayDirectionNV.xyz;
+               const vec4 attenuationAndDistance = vec4(Color(newHitPoint, normal, texCoord, material), hitDistance);
+               const vec3 scatterDirection = RandomUnitVector(randomSeed);
+               return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
+            }
+            return RayPayload(vec4(1.0, 1.0, 1.0, gl_HitTNV), vec4(0.0), vec4(gl_WorldRayDirectionNV.xyz, 1.0), randomSeed);
+         }
+         // ray came from outside object.
+         // find other side of object (if there isnt one, then we just hit the tangent -> other hit = this hit)
+         // find out how far (from hit point, in ray direction) until scattering occurs.
+         // if that is before other side of object, then move hit point to there, and scatter.
+         // if that is after other side of object, then turn it into no hit by moving hit point to other side of object, and "scatter" the ray in original direction.
+         const float originalDistance = gl_HitTNV;
+         const float hitDistance = gl_HitTNV + 0.001 + material.materialParameter1 * log(RandomFloat(randomSeed));
+         traceNV(
+            world,
+            gl_RayFlagsOpaqueNV,
+            0xff,
+            0,                // sbt recordoffset
+            0,                // sbt record stride
+            0,                // miss index
+            gl_WorldRayOriginNV,
+            gl_HitTNV + 0.001, // tmin
+            gl_WorldRayDirectionNV,
+            10000.0,         // tmax
+            1                 // ray payload (binding index) 
+         );
+         if(hitDistance < ray1.attenuationAndDistance.w) {
+            const vec3 newHitPoint = gl_WorldRayOriginNV + hitDistance * gl_WorldRayDirectionNV.xyz;
+            const vec4 attenuationAndDistance = vec4(Color(newHitPoint, normal, texCoord, material), hitDistance);
+            const vec3 scatterDirection = RandomUnitVector(randomSeed);
+            return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
+         }
+         return RayPayload(vec4(1.0, 1.0, 1.0, clamp(ray1.attenuationAndDistance.w, originalDistance, 10000.0)), vec4(0.0), vec4(gl_WorldRayDirectionNV.xyz, 1.0), randomSeed);
       }
    }
 }

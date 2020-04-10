@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
@@ -10,24 +11,29 @@ using uint = uint32_t;
 
 
 inline
-Material Lambertian(Texture texture) {
-   return Material {MATERIAL_LAMBERTIAN, 0.0, 0.0, texture.id, texture.param1, texture.param2};
+Material Lambertian(const Texture& texture) {
+   return Material{MATERIAL_LAMBERTIAN, 0.0f, 0.0f, texture.id, texture.param1, texture.param2};
 }
 
 
 inline
-Material Metallic(Texture texture, float roughness) {
-   return Material {MATERIAL_METALLIC, roughness, 0.0, texture.id, texture.param1, texture.param2};
+Material Metallic(const Texture& texture, float roughness) {
+   return Material{MATERIAL_METALLIC, roughness, 0.0f, texture.id, texture.param1, texture.param2};
 }
 
 
 inline
-Material Dielectric(float refractiveIndex) {
-   return Material {MATERIAL_DIELECTRIC, 0.0, refractiveIndex};
+Material Dielectric(const float refractiveIndex) {
+   return Material{MATERIAL_DIELECTRIC, refractiveIndex};
 }
 
 
 inline
-Material DiffuseLight(Texture texture) {
-   return Material {MATERIAL_DIFFUSELIGHT, 0.0, 0.0, texture.id, texture.param1, texture.param2};
+Material DiffuseLight(const Texture& texture) {
+   return Material{MATERIAL_DIFFUSELIGHT, 0.0f, 0.0f, texture.id, texture.param1, texture.param2};
+}
+
+inline
+Material Smoke(const float density, const Texture& texture) {
+   return Material{MATERIAL_SMOKE, -1.0f / std::max(density, 0.0000001f), 0.0f, texture.id, texture.param1, texture.param2};
 }

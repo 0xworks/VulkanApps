@@ -23,16 +23,16 @@ void Sphere::SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
 }
 
 
-SphereInstance::SphereInstance(glm::vec3 centre, float radius, Material material)
+SphereInstance::SphereInstance(const glm::vec3& centre, const float radius, const Material& material)
 : Instance {
-      sm_ModelIndex,
-      glm::mat3x4 {
-         {radius, 0.0f, 0.0f, centre.x},
-         {0.0f, radius, 0.0f, centre.y},
-         {0.0f, 0.0f, radius, centre.z},
-      },
-      std::move(material)
-   }
+   sm_ModelIndex,
+   glm::mat3x4 {
+      {radius, 0.0f, 0.0f, centre.x},
+      {0.0f, radius, 0.0f, centre.y},
+      {0.0f, 0.0f, radius, centre.z},
+   },
+   material
+}
 {
    ASSERT(sm_ModelIndex != ~0, "ERROR: Sphere model instance has not been set.  You must set the sphere model index (via SetModelIndex()) before instantiating a sphere");
 }

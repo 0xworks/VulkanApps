@@ -23,7 +23,7 @@ private:
 
 class SphereInstance : public Instance {
 public:
-   SphereInstance(glm::vec3 centre, float radius, Material material);
+   SphereInstance(const glm::vec3& centre, const float radius, const Material& material);
 
 public:
    static void SetModelIndex(uint32_t modelIndex);

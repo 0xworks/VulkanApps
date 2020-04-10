@@ -9,7 +9,7 @@
 uint32_t Model::sm_ShaderHitGroupIndex = ~0;
 
 
-Model::Model(const char* filename, uint32_t shaderHitGroupIndex)
+Model::Model(const char* filename, const uint32_t shaderHitGroupIndex)
 : m_ShaderHitGroupIndex(shaderHitGroupIndex)
 {
    tinyobj::attrib_t attrib;

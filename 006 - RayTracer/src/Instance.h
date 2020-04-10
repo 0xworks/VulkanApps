@@ -4,7 +4,7 @@
 
 class Instance {
 public:
-   Instance(uint32_t modelIndex, glm::mat3x4 transform, Material material);
+   Instance(const uint32_t modelIndex, const glm::mat3x4& transform, const Material& material);
 
    uint32_t GetModelIndex() const;
 

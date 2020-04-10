@@ -60,9 +60,3 @@ vec3 RandomUnitVector(inout uint seed) {
    const float r = sqrt(1.0f - z * z);
    return vec3(r * cos(a), r * sin(a), z);
 }
-
-#ifdef GL_ES
-precision mediump float;
-#endif
-
-

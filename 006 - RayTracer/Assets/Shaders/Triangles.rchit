@@ -15,8 +15,7 @@ layout(binding = BINDING_OFFSETBUFFER) readonly buffer OffsetArray { Offset offs
 hitAttributeNV vec2 hit;
 rayPayloadInNV RayPayload ray;
 
-Vertex UnpackVertex(uint index)
-{
+Vertex UnpackVertex(uint index) {
    const uint vertexSize = 8;
    const uint offset = index * vertexSize;
 
@@ -46,5 +45,5 @@ void main() {
    vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
    // texCoords dont need transforming
 
-   ray = Scatter(gl_WorldRayDirectionNV, hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
+   ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
 }

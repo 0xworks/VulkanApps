@@ -747,9 +747,9 @@ void Application::Update(double dt) {
    }
 
    if (glfwGetKey(m_Window, GLFW_KEY_R) == GLFW_PRESS) {
-      m_Eye += deltaTime * m_Up;
+      m_Eye += deltaTime * m_Up * glm::length(m_Direction);
    } else if (glfwGetKey(m_Window, GLFW_KEY_F) == GLFW_PRESS) {
-      m_Eye -= deltaTime * m_Up;
+      m_Eye -= deltaTime * m_Up * glm::length(m_Direction);
    }
 
    if (m_LeftMouseDown) {

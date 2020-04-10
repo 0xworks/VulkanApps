@@ -6,7 +6,7 @@
 
 class Model {
 public:
-   Model(const char* filename, uint32_t shaderHitGroupIndex = sm_ShaderHitGroupIndex);
+   Model(const char* filename, const uint32_t shaderHitGroupIndex = sm_ShaderHitGroupIndex);
 
    // For now all "Models" have vertices and indices, even though procedural geometries
    // do not strictly need these.

@@ -84,12 +84,6 @@ std::vector<const char*> RayTracer::GetRequiredDeviceExtensions() {
 void RayTracer::Init() {
    Vulkan::Application::Init();
 
-   m_Eye = {8.0f, 3.0f, 2.0f};
-   m_Direction = {-8.0f, -2.0f, -2.0f};
-   m_Up = {0.0f, 1.0f, 0.0f};
-
-   m_Direction = glm::normalize(m_Direction);
-
    auto properties = m_PhysicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPropertiesNV>();
    m_RayTracingProperties = properties.get<vk::PhysicalDeviceRayTracingPropertiesNV>();
 
@@ -127,46 +121,19 @@ void RayTracer::CreateScene() {
    BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>()));
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
-   // HACK:
-   // set this to control which scene is generated
-   enum class EScene {
-      eRayTracingInOneWeekend,
-      eRayTracingTheNextWeekTexturesAndLight,
-      eCornellBox,
-      eSphereBoxRotationTest
-   };
-   EScene scene = EScene::eCornellBox;
-
-   switch (scene) {
-      case EScene::eRayTracingInOneWeekend: {
-         CreateSceneRayTracingInOneWeekend();
-         break;
-      }
-
-      case EScene::eRayTracingTheNextWeekTexturesAndLight: {
-         CreateSceneRayTracingTheNextWeekTexturesAndLight();
-         break;
-      }
-
-      case EScene::eCornellBox: {
-         CreateSceneCornellBox();
-         break;
-      }
-
-      case EScene::eSphereBoxRotationTest: {
-         CreateSceneBoxRotationTest();
-         break;
-      }
-
-      default: {
-         // empty scene.  nothing to see here.
-         break;
-      }
-   }
+   //CreateSceneRayTracingInOneWeekend();
+   //CreateSceneRayTracingTheNextWeekTexturesAndLight();
+   //CreateSceneCornellBoxWithBoxes();
+   CreateSceneCornellBoxWithSmokeBoxes();
+   //CreateSceneBoxRotationTest();
 }
 
 
 void RayTracer::CreateSceneRayTracingInOneWeekend() {
+   m_Eye = {8.0f, 3.0f, 2.0f};
+   m_Direction = {-2.0f, -0.5f, -0.5};
+   m_Up = {0.0f, 1.0f, 0.0f};
+
    m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
    m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
 
@@ -213,17 +180,24 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
 
    // the three main spheres...
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {0.0f, 2.0f, 0.0f}   /*centre*/,
+      glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
       1.0f                           /*radius*/,
       Dielectric(1.5f)               /*material*/
    ));
+//    m_Scene.AddInstance(std::make_unique<SphereInstance>(
+//       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
+//       -0.99f                         /*radius*/,
+//       Dielectric(1.5f)               /*material*/
+//    ));
+
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {-4.0f, 2.0f, 0.0f}     /*centre*/,
+      glm::vec3 {-4.0f, 2.00f, 0.0f}     /*centre*/,
       1.0f                              /*radius*/,
       Lambertian(                       /*material*/
          FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
       )
    ));
+
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
       1.0f                               /*radius*/,
@@ -236,13 +210,17 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
 
 
 void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
+   m_Eye = {8.0f, 3.0f, 2.0f};
+   m_Direction = {-2.0f, -0.5f, -0.5};
+   m_Up = {0.0f, 1.0f, 0.0f};
+
    m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
    m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
 
    // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
    //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-      glm::vec3 {-500.0f, 1.0f, 500.0f}                                         /*origin*/,
+      glm::vec3 {0.0f, 1.0f, 0.0f}                                         /*origin*/,
       glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
       glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
       Lambertian(                                                               /*material*/
@@ -338,7 +316,10 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
 
 
 void RayTracer::CreateSceneBoxRotationTest() {
-   //
+   m_Eye = {8.0f, 3.0f, 2.0f};
+   m_Direction = {-2.0f, -0.5f, -0.5};
+   m_Up = {0.0f, 1.0f, 0.0f};
+
    // A sphere and a box, shaded according to their normals.
    // Note that box faces should be shaded consistently with the sphere.
    // (e.g. box facing forward should be shaded same color as the point on the sphere that faces forward)
@@ -360,7 +341,7 @@ void RayTracer::CreateSceneBoxRotationTest() {
 }
 
 
-void RayTracer::CreateSceneCornellBox() {
+void RayTracer::CreateCornellBox(glm::vec3 size) {
    m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
    m_Scene.SetZenithColor({0.f, 0.0f, 0.0f});
 
@@ -372,7 +353,6 @@ void RayTracer::CreateSceneCornellBox() {
    Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
    Material light = DiffuseLight(FlatColor({15.0f, 15.0f, 15.0f}));
 
-   glm::vec3 size = {555.0f, 555.0f, 555.0f};
    glm::vec3 halfSize = size / 2.0f;
    glm::vec2 lightSize = {130.0f, 105.0f};
 
@@ -423,17 +403,50 @@ void RayTracer::CreateSceneCornellBox() {
        clockwiseX90,
        light
     ));
+}
 
-    glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
-    glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, -(size.y - box1Size.y) * 0.5f, -halfSize.z * 1.25};
-    glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
-    m_Scene.AddInstance(std::make_unique<BoxInstance>(box1Centre, box1Size, box1Rotation,white));
 
-    glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
-    glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, -(size.y - box2Size.y) * 0.5f, -halfSize.z * 0.65};
-    glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
-    m_Scene.AddInstance(std::make_unique<BoxInstance>(box2Centre, box2Size, box2Rotation, white));
+void RayTracer::CreateSceneCornellBoxWithBoxes() {
+   glm::vec3 size = {555.0f, 555.0f, 555.0f};
+   glm::vec3 halfSize = size / 2.0f;
 
+   Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
+
+   CreateCornellBox(size);
+
+   glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
+   glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, -(size.y - box1Size.y) * 0.5f, -halfSize.z * 1.25};
+   glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(box1Centre, box1Size, box1Rotation, white));
+
+   glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
+   glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, -(size.y - box2Size.y) * 0.5f, -halfSize.z * 0.65};
+   glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(box2Centre, box2Size, box2Rotation, white));
+
+}
+
+
+void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
+   glm::vec3 size = {555.0f, 555.0f, 555.0f};
+   glm::vec3 halfSize = size / 2.0f;
+
+   Material smoke = Smoke(0.01f, FlatColor({0.0f, 0.0f, 0.0f}));
+   Material fog = Smoke(0.01f, FlatColor({1.0f, 1.0f, 1.0f}));
+
+   CreateCornellBox(size);
+
+   // need to raise the boxes off the floor slightly, as otherwise rays that go
+   // right through the boxes will also go right through the floor
+   glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
+   glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, (-(size.y - box1Size.y) * 0.5f) + 0.002, -halfSize.z * 1.25};
+   glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(box1Centre, box1Size, box1Rotation, smoke));
+
+   glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
+   glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - box2Size.y) * 0.5f) + 0.002, -halfSize.z * 0.65};
+   glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(box2Centre, box2Size, box2Rotation, fog));
 }
 
 

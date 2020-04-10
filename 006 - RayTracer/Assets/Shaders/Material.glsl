@@ -6,13 +6,14 @@
 #define MATERIAL_METALLIC     1
 #define MATERIAL_DIELECTRIC   2
 #define MATERIAL_DIFFUSELIGHT 3
+#define MATERIAL_SMOKE        4
 
+// Be careful with alignment...
 struct Material {
    uint type;
-   float roughness;
-   float refractiveIndex;
+   float materialParameter1;
+   float materialParameter2;
    int textureId;
    vec4 textureParam1;
    vec4 textureParam2;
-      // note: make sure rest of structure is padded to size of largest data member (here, 16 bytes because textureParma1, and textureParam2 are both 16 bytes)
 };
