@@ -40,7 +40,7 @@ void main() {
    const vec3 hitPoint = v0.pos * barycentric.x + v1.pos * barycentric.y + v2.pos * barycentric.z;
    const vec3 normal = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
    const vec2 texCoord = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
-   
+
    vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
    vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
    // texCoords dont need transforming

@@ -63,7 +63,6 @@ RayTracer::~RayTracer() {
    DestroyStorageImages();
    DestroyAccelerationStructures();
    DestroyMaterialBuffer();
-   DestroySphereBuffer();
    DestroyAABBBuffer();
    DestroyOffsetBuffer();
    DestroyIndexBuffer();
@@ -98,7 +97,6 @@ void RayTracer::Init() {
    CreateIndexBuffer();
    CreateOffsetBuffer();
    CreateAABBBuffer();
-   CreateSphereBuffer();
    CreateMaterialBuffer();
    CreateAccelerationStructures();
    CreateStorageImages();
@@ -592,34 +590,6 @@ void RayTracer::DestroyMaterialBuffer() {
 }
 
 
-void RayTracer::CreateSphereBuffer() {
-   std::vector<glm::vec4> spheres;
-   spheres.reserve(m_Scene.GetInstances().size());
-   
-   // we create a "sphere" for every instance, even if it isnt a sphere.
-   // this makes it easier to index into the sphere buffer in the shaders
-   for (const auto& instance : m_Scene.GetInstances()) {
-      // the sphere radius is (0,0)th element of its transform
-      // the sphere centre is last column of transform.
-      const glm::mat3x4 transform = instance->GetTransform();
-      spheres.emplace_back(transform[0][3], transform[1][3], transform[2][3], transform[0][0]);
-   }
-
-   vk::DeviceSize size = spheres.size() * sizeof(glm::vec4);
-
-   Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-   stagingBuffer.CopyFromHost(0, size, spheres.data());
-
-   m_SphereBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
-   CopyBuffer(stagingBuffer.m_Buffer, m_SphereBuffer->m_Buffer, 0, 0, size);
-}
-
-
-void RayTracer::DestroySphereBuffer() {
-   m_SphereBuffer.reset(nullptr);
-}
-
-
 void RayTracer::CreateAccelerationStructures() {
    vk::DeviceSize vertexOffset = 0;
    vk::DeviceSize indexOffset = 0;
@@ -817,14 +787,6 @@ void RayTracer::CreateDescriptorSetLayout() {
       nullptr                                   /*pImmutableSamplers*/
    };
 
-   vk::DescriptorSetLayoutBinding sphereBufferLB = {
-      BINDING_SPHEREBUFFER                                                               /*binding*/,
-      vk::DescriptorType::eStorageBuffer                                                 /*descriptorType*/,
-      1                                                                                  /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV  /*stageFlags*/,
-      nullptr                                                                            /*pImmutableSamplers*/
-   };
-
    vk::DescriptorSetLayoutBinding materialBufferLB = {
       BINDING_MATERIALBUFFER                    /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
@@ -841,7 +803,6 @@ void RayTracer::CreateDescriptorSetLayout() {
       vertexBufferLB,
       indexBufferLB,
       offsetBufferLB,
-      sphereBufferLB,
       materialBufferLB
    };
 
@@ -1180,22 +1141,6 @@ void RayTracer::CreateDescriptorSets() {
          nullptr                                      /*pTexelBufferView*/
       };
 
-      vk::DescriptorBufferInfo sphereBufferDescriptor = {
-         m_SphereBuffer->m_Buffer      /*buffer*/,
-         0                             /*offset*/,
-         VK_WHOLE_SIZE                 /*range*/
-      };
-      vk::WriteDescriptorSet sphereBufferWrite = {
-         m_DescriptorSets[i]                          /*dstSet*/,
-         BINDING_SPHEREBUFFER                         /*dstBinding*/,
-         0                                            /*dstArrayElement*/,
-         1                                            /*descriptorCount*/,
-         vk::DescriptorType::eStorageBuffer           /*descriptorType*/,
-         nullptr                                      /*pImageInfo*/,
-         &sphereBufferDescriptor                      /*pBufferInfo*/,
-         nullptr                                      /*pTexelBufferView*/
-      };
-
       vk::DescriptorBufferInfo materialBufferDescriptor = {
          m_MaterialBuffer->m_Buffer  /*buffer*/,
          0                           /*offset*/,
@@ -1220,7 +1165,6 @@ void RayTracer::CreateDescriptorSets() {
          vertexBufferWrite,
          indexBufferWrite,
          offsetBufferWrite,
-         sphereBufferWrite,
          materialBufferWrite
       };
 

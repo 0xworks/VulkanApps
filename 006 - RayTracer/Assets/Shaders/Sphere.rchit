@@ -5,8 +5,6 @@
 #include "Bindings.glsl"
 #include "Scatter.glsl"
 
-layout(set = 0, binding = BINDING_SPHEREBUFFER) readonly buffer SphereArray { vec4 spheres[]; };
-
 hitAttributeNV uint unused; // you must declare a hitAttributeNV otherwise the shader does not work properly!
 
 rayPayloadInNV RayPayload ray;
@@ -25,14 +23,17 @@ vec2 GetSphereTexCoord(const vec3 point) {
 
 void main() {
    // Compute the ray hit point and normal.
-   // These calcs are already in world coordinates, no need to transform.
-   const vec4 sphere = spheres[gl_InstanceCustomIndexNV];
-   const vec3 centre = sphere.xyz;
-   const float radius = sphere.w;
-   const vec3 hitPoint = gl_WorldRayOriginNV + gl_HitTNV * gl_WorldRayDirectionNV;
+   const vec3 centre = vec3(0.0);
+   const float radius = 1.0;
+
+   const vec3 hitPoint = gl_ObjectRayOriginNV + gl_HitTNV * gl_ObjectRayDirectionNV;
    const vec3 normal = normalize((hitPoint - centre) / radius); // note. hitPoint is not necessarily on surface of sphere (e.g. if material is smoke)
 
    const vec2 texCoord = GetSphereTexCoord(normal);
 
-   ray = Scatter(hitPoint, normal, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
+   vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
+   vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
+   // texCoords dont need transforming
+
+   ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
 }

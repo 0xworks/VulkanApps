@@ -32,9 +32,6 @@ public:
    void CreateAABBBuffer();
    void DestroyAABBBuffer();
 
-   void CreateSphereBuffer();
-   void DestroySphereBuffer();
-
    void CreateMaterialBuffer();
    void DestroyMaterialBuffer();
 
@@ -85,7 +82,7 @@ private:
    std::unique_ptr<Vulkan::IndexBuffer> m_IndexBuffer;
    std::unique_ptr<Vulkan::Buffer> m_OffsetBuffer;
    std::unique_ptr<Vulkan::Buffer> m_AABBBuffer;
-   std::unique_ptr<Vulkan::Buffer> m_SphereBuffer;
+//   std::unique_ptr<Vulkan::Buffer> m_SphereBuffer;
    std::unique_ptr<Vulkan::Buffer> m_MaterialBuffer;
    std::unique_ptr<Vulkan::Image> m_OutputImage;
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
