@@ -3,8 +3,15 @@
 #extension GL_NV_ray_tracing : require
 
 #include "Bindings.glsl"
+#include "Material.glsl"
+#include "Random.glsl"
+#include "UniformBufferObject.glsl"
 
 layout(set = 0, binding = BINDING_SPHEREBUFFER) readonly buffer SphereArray { vec4 spheres[]; };
+layout(set = 0, binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
+layout(set = 0, binding = BINDING_UNIFORMBUFFER) readonly uniform UBO {
+   UniformBufferObject ubo;
+};
 
 hitAttributeNV vec4 unused;   // you must declare a hitAttributeNV otherwise the shader does not work properly!
 
@@ -27,11 +34,32 @@ void main() {
    const float discriminant = b * b - a * c;
 
    if (discriminant >= 0) {
-      const float t1 = (-b - sqrt(discriminant)) / a;
-      const float t2 = (-b + sqrt(discriminant)) / a;
+      float t1 = (-b - sqrt(discriminant)) / a;
+      float t2 = (-b + sqrt(discriminant)) / a;
 
-      if ((tMin <= t1 && t1 < tMax) || (tMin <= t2 && t2 < tMax)) {
-         reportIntersectionNV((tMin <= t1 && t1 < tMax) ? t1 : t2, 0);
+      Material material = materials[gl_InstanceCustomIndexNV];
+      if(material.type == MATERIAL_SMOKE) {
+         uint seed = InitRandomSeed(
+            InitRandomSeed(
+               InitRandomSeed(
+                  InitRandomSeed(
+                     InitRandomSeed(gl_LaunchIDNV.x, gl_LaunchIDNV.y),
+                     uint(gl_WorldRayOriginNV.x)
+                  ),
+                  uint(gl_WorldRayOriginNV.y)
+               ),
+               uint(gl_WorldRayOriginNV.z)
+            ),
+            ubo.accumulatedFrameCount
+         );
+         const float hitDistance = max(t1, tMin) + material.materialParameter1 * log(RandomFloat(seed));
+         if ((hitDistance <= t2) && (t2 < tMax)) {
+            reportIntersectionNV(hitDistance, 0);
+         }
+      } else {
+         if ((tMin <= t1 && t1 < tMax) || (tMin <= t2 && t2 < tMax)) {
+            reportIntersectionNV((tMin <= t1 && t1 < tMax) ? t1 : t2, 0);
+         }
       }
    }
 }

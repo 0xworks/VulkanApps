@@ -30,7 +30,7 @@ void main() {
    const vec3 centre = sphere.xyz;
    const float radius = sphere.w;
    const vec3 hitPoint = gl_WorldRayOriginNV + gl_HitTNV * gl_WorldRayDirectionNV;
-   const vec3 normal = (hitPoint - centre) / radius;
+   const vec3 normal = normalize((hitPoint - centre) / radius); // note. hitPoint is not necessarily on surface of sphere (e.g. if material is smoke)
 
    const vec2 texCoord = GetSphereTexCoord(normal);
 

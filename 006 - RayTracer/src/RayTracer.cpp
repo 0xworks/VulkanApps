@@ -121,10 +121,10 @@ void RayTracer::CreateScene() {
    BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>()));
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
-   //CreateSceneRayTracingInOneWeekend();
+   CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
-   CreateSceneCornellBoxWithSmokeBoxes();
+   //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneBoxRotationTest();
 }
 
@@ -182,13 +182,18 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
       1.0f                           /*radius*/,
-      Dielectric(1.5f)               /*material*/
+      Smoke(0.5, FlatColor({1.0f, 1.0f, 1.0f}))
+//      Dielectric(1.5f)               /*material*/
    ));
-//    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-//       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
-//       -0.99f                         /*radius*/,
+    m_Scene.AddInstance(std::make_unique<SphereInstance>(
+       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
+       0.5f                         /*radius*/,
+       Metallic(                          /*material*/
+          FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
+          0.01f                              /*roughness*/
+       )
 //       Dielectric(1.5f)               /*material*/
-//    ));
+    ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.00f, 0.0f}     /*centre*/,
@@ -784,7 +789,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_UNIFORMBUFFER                                                                                           /*binding*/,
       vk::DescriptorType::eUniformBuffer                                                                              /*descriptorType*/,
       1                                                                                                               /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV  /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV  /*stageFlags*/,
       nullptr                                                                                                         /*pImmutableSamplers*/
    };
 
@@ -824,7 +829,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_MATERIALBUFFER                    /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      {vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
+      {vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
 
