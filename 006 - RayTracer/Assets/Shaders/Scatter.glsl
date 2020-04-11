@@ -70,7 +70,8 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 
       case TEXTURE_MARBLE: {
          vec3 p = hitPoint;
-         return mix(material.textureParam1.rgb, vec3(sin(material.textureParam2.w * p.z + 10.0 * turbulence(p, int(material.textureParam2.z)))), material.textureParam1.w);
+         p *= material.textureParam2.w; // scale
+         return mix(material.textureParam1.rgb, vec3(sin(p.z + 10.0 * turbulence(p, int(material.textureParam2.z)))), material.textureParam1.w);
       }
 
       case TEXTURE_NORMALS: {

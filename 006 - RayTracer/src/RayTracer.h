@@ -74,6 +74,7 @@ private:
    void CreateCornellBox(const glm::vec3 size);
    void CreateSceneCornellBoxWithBoxes();
    void CreateSceneCornellBoxWithSmokeBoxes();
+   void CreateSceneRayTracingTheNextWeekFinal();
 
 
 private:

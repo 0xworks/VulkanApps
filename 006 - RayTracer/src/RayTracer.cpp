@@ -39,6 +39,11 @@ inline float RandomFloat() {
 }
 
 
+inline float RandomFloat(float min, float max) {
+   return min + (max - min) * RandomFloat();
+}
+
+
 RayTracer::RayTracer(int argc, const char* argv[])
 : Vulkan::Application {
    { "Ray Tracer", VK_MAKE_VERSION(1,0,0) },
@@ -124,8 +129,10 @@ void RayTracer::CreateScene() {
    //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
-   CreateSceneCornellBoxWithSmokeBoxes();
+   //CreateSceneCornellBoxWithSmokeBoxes();
+   CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
+
 }
 
 
@@ -440,6 +447,70 @@ void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
    glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - box2Size.y) * 0.5f), -halfSize.z * 0.65};
    glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
    m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(box2Centre, box2Size, box2Rotation, fog));
+}
+
+
+void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
+   m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
+   m_Scene.SetZenithColor({0.f, 0.0f, 0.0f});
+
+   m_Eye = {-200.0f, 0.0f, 600.0f};
+   m_Direction = {50.0f, 1.0f, -140.0f};
+
+   Material green = Lambertian(FlatColor({0.48f, 0.83f, 0.53f}));
+   Material light = DiffuseLight(FlatColor({7.0f, 7.0f, 7.0f}));
+   Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
+   Material black = Lambertian(FlatColor({0.0f, 0.0f, 0.0f}));
+
+   const int boxesPerSize = 20;
+   const float boxSize = 100.0f;
+   for (int i = 0; i < boxesPerSize; ++i) {
+      for (int j = 0; j < boxesPerSize; ++j) {
+         glm::vec3 centre = {1278.0f - ((i + 0.5f) * boxSize), -278.0f, 1000.0f - ((j + 0.5f) * boxSize)};
+         glm::vec3 size = {boxSize, RandomFloat(1.0f, 101.0f), boxSize};
+         m_Scene.AddInstance(std::make_unique<BoxInstance>(centre, size, glm::vec3 {}, green));
+      }
+   }
+
+   // moving sphere. Not done.
+
+   // glass sphere
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {18.0f, -128.0f, -45.0f}, 50.0f, Dielectric(1.5f)));
+
+   // metal sphere
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {278.0f, -128.0f, -145.0f}, 50.0f, Metallic(FlatColor({0.8f, 0.8f, 0.9f}), 1.0f)));
+
+   // glass ball filled with blue smoke
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 70.0f, Dielectric(1.5f)));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 69.99f, Smoke(0.2f, FlatColor({0.2f, 0.4f, 0.9f}))));
+
+   // polystyrene cube
+   glm::mat4x4 transform = glm::rotate(glm::translate(glm::identity<glm::mat4x4>(), {213.0f, -8.0f, -560.0f}), glm::radians(15.0f), {0.0f, 1.0f, 0.0f});
+   for (int i = 0; i < 1000; ++i) {
+      glm::vec4 centre = {RandomFloat(0.0f, 165.0f), RandomFloat(0.0f, 165.0f), RandomFloat(0.0f, 165.0f), 1.0f};
+      glm::vec4 centreTransformed = transform * centre;
+      m_Scene.AddInstance(std::make_unique<SphereInstance>(centreTransformed, 10.0f, white));
+   }
+
+   // marble ball
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {58.0f, 2.0f, -300.0f}, 80.0f, Lambertian(Marble({1.0f, 1.0f, 1.0f}, 0.01f, 0.5f, 7))));
+
+   // earth textured sphere: Not done.
+
+   // ceiling
+   //m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f - 1000.0f - 150.f, 276.0f, -278.0f}, glm::vec2{2000.0f, 4132.5f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, black));
+   //m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f + 1000.0f + 150.0f, 276.0f, -278.0f}, glm::vec2{2000.0f, 4132.5f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, black));
+   //m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -278.0f + 132.5 + 1000.0f}, glm::vec2{300.0f, 2000.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, black));
+   //m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -278.0 - 132.5 - 1000.f}, glm::vec2{300.0f, 2000.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, black));
+
+   // mist under ceiling
+   //m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{2000.0f, 554.0f, 2000.0f}, glm::vec3{}, Smoke(0.0001f, FlatColor({1.0f, 1.0f, 1.0f}))));
+
+   // mist covering whole scene
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, 2000.0f, Smoke(0.0001f, FlatColor({1.0f, 1.0f, 1.0f}))));
+
+   // The light
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -279.5f}, glm::vec2{300.0f, 265.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));
 }
 
 
@@ -972,6 +1043,8 @@ void RayTracer::CreatePipeline() {
 
    m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI);
 
+   m_Device.waitIdle();
+
    // Create buffer for the shader binding table
    const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaders;
 
@@ -1323,7 +1396,7 @@ void RayTracer::Update(double deltaTime) {
 
 void RayTracer::RenderFrame() {
 
-   glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
+   glm::mat4 projection = glm::perspective(glm::radians(40.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
    // flip y axis for vulkan
    projection[1][1] *= -1;
    glm::mat4 modelView = glm::lookAt(m_Eye, m_Eye + glm::normalize(m_Direction), m_Up);
