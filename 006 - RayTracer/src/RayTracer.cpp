@@ -112,18 +112,19 @@ void RayTracer::Init() {
 
 void RayTracer::CreateScene() {
 
-   Model::SetShaderHitGroupIndex(eTrianglesHitGroup - eFirstHitGroup);
-   Sphere::SetShaderHitGroupIndex(eSphereHitGroup - eFirstHitGroup);
-   Box::SetShaderHitGroupIndex(eBoxHitGroup - eFirstHitGroup);
+   Model::SetDefaultShaderHitGroupIndex(eTrianglesHitGroup - eFirstHitGroup);
+   Sphere::SetDefaultShaderHitGroupIndex(eSphereHitGroup - eFirstHitGroup);
+   Box::SetDefaultShaderHitGroupIndex(eBoxHitGroup - eFirstHitGroup);
 
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
-   BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>()));
+   BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>(false)));
+   ProceduralBoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>(true)));
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
-   CreateSceneCornellBoxWithBoxes();
-   //CreateSceneCornellBoxWithSmokeBoxes();
+   //CreateSceneCornellBoxWithBoxes();
+   CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneBoxRotationTest();
 }
 
@@ -138,12 +139,12 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
 
    // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
    //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
-   m_Scene.AddInstance(std::make_unique<BoxInstance>(
-      glm::vec3{0.0f, -999.0f, 0.0f}       /*centre*/,
-      glm::vec3 {2000.0f}                  /*size*/,
-      glm::vec3 {0.0f}                     /*rotation*/,
-      Lambertian(                         /*material*/
-         FlatColor({0.5, 0.5, 0.5})
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+      glm::vec3 {0.0f, 1.0f, 0.0f}                                         /*origin*/,
+      glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
+      glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
+      Lambertian(                                                               /*material*/
+         FlatColor({0.5f, 0.5f, 0.5f})                                             /*texture*/
       )
    ));
 
@@ -181,18 +182,8 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
       1.0f                           /*radius*/,
-      Smoke(0.5, FlatColor({1.0f, 1.0f, 1.0f}))
-//      Dielectric(1.5f)               /*material*/
+      Dielectric(1.5f)               /*material*/
    ));
-    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
-       0.5f                         /*radius*/,
-       Metallic(                          /*material*/
-          FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
-          0.01f                              /*roughness*/
-       )
-//       Dielectric(1.5f)               /*material*/
-    ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.00f, 0.0f}     /*centre*/,
@@ -445,12 +436,12 @@ void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
    glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
    glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, (-(size.y - box1Size.y) * 0.5f) + 0.002, -halfSize.z * 1.25};
    glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
-   m_Scene.AddInstance(std::make_unique<BoxInstance>(box1Centre, box1Size, box1Rotation, smoke));
+   m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(box1Centre, box1Size, box1Rotation, smoke));
 
    glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
    glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - box2Size.y) * 0.5f) + 0.002, -halfSize.z * 0.65};
    glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
-   m_Scene.AddInstance(std::make_unique<BoxInstance>(box2Centre, box2Size, box2Rotation, fog));
+   m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(box2Centre, box2Size, box2Rotation, fog));
 }
 
 
@@ -983,11 +974,6 @@ void RayTracer::CreatePipeline() {
 
    m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI);
 
-   // Shader modules are no longer needed once the graphics pipeline has been created
-   for (auto& shaderStage : shaderStages) {
-      DestroyShaderModule(shaderStage.module);
-   }
-
    // Create buffer for the shader binding table
    const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaders;
 
@@ -998,6 +984,10 @@ void RayTracer::CreatePipeline() {
    m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
    m_ShaderBindingTable->CopyFromHost(0, size, shaderHandleStorage.data());
 
+   // Shader modules are no longer needed once the graphics pipeline has been created
+   for (auto& shaderStage : shaderStages) {
+      DestroyShaderModule(shaderStage.module);
+   }
 }
 
 

@@ -17,21 +17,21 @@ void main() {
    const vec4 normal = normals[gl_HitKindNV];
 
    vec2 texCoord = vec2(0.0);
-//   switch(gl_HitKindNV) {
-//      case 0:
-//      case 1:
-//         texCoord = hitPoint.xy;
-//         break;
-//      case 2:
-//      case 3:
-//         texCoord = hitPoint.xz;
-//         break;
-//      case 4:
-//      case 5:
-//         texCoord = hitPoint.yz;
-//         break;
-//   }
-//
+   switch(gl_HitKindNV) {
+      case 0:
+      case 1:
+         texCoord = hitPoint.xy;
+         break;
+      case 2:
+      case 3:
+         texCoord = hitPoint.xz;
+         break;
+      case 4:
+      case 5:
+         texCoord = hitPoint.yz;
+         break;
+   }
+
    vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
    vec3 normalW = normalize(gl_ObjectToWorldNV * normal);
    // texCoords dont need transforming

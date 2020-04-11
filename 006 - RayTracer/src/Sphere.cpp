@@ -18,7 +18,7 @@ std::array<glm::vec3, 2> Sphere::GetBoundingBox() const {
 }
 
 
-void Sphere::SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
+void Sphere::SetDefaultShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
    sm_ShaderHitGroupIndex = shaderHitGroupIndex;
 }
 
@@ -34,7 +34,7 @@ SphereInstance::SphereInstance(const glm::vec3& centre, const float radius, cons
    material
 }
 {
-   ASSERT(sm_ModelIndex != ~0, "ERROR: Sphere model instance has not been set.  You must set the sphere model index (via SetModelIndex()) before instantiating a sphere");
+   ASSERT(sm_ModelIndex != ~0, "ERROR: Sphere model index has not been set.  You must set the model index (via SetModelIndex()) before instantiating a Sphere");
 }
 
 

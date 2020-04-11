@@ -14,7 +14,7 @@ public:
    std::array<glm::vec3, 2> GetBoundingBox() const override;
 
 public:
-   static void SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex);
+   static void SetDefaultShaderHitGroupIndex(const uint32_t shaderHitGroupIndex);
 
 private:
    static uint32_t sm_ShaderHitGroupIndex;

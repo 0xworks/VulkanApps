@@ -47,10 +47,8 @@ void main() {
          if ((hitDistance <= t2) && (t2 < gl_RayTmaxNV)) {
             reportIntersectionNV(hitDistance, 0);
          }
-      } else {
-         if ((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) || (gl_RayTminNV <= t2 && t2 < gl_RayTmaxNV)) {
-            reportIntersectionNV((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) ? t1 : t2, 0);
-         }
+      } else if ((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) || (gl_RayTminNV <= t2 && t2 < gl_RayTmaxNV)) {
+         reportIntersectionNV((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) ? t1 : t2, 0);
       }
    }
 }

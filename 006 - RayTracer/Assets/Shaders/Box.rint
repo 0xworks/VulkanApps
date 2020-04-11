@@ -15,34 +15,48 @@ layout(set = 0, binding = BINDING_UNIFORMBUFFER) readonly uniform UBO {
 hitAttributeNV vec4 unused;   // you must declare a hitAttributeNV otherwise the shader does not work properly!
 
 
-void IntersectXY(const float k, const uint side) {
+void ReportHit(const float t, inout float t1, inout float t2, inout uint hitSide, const uint side) {
+   if(t < t1) {
+      if(t1 < t2) {
+         t2 = t1;
+      }
+      t1 = t;
+      hitSide = side;
+   }
+   if((t < t2) && (t > t1)) {
+      t2 = t;
+   }
+}
+
+
+void IntersectXY(const float k, inout float t1, inout float t2, inout uint hitSide, const uint side) {
    const float t = (k - gl_ObjectRayOriginNV.z) / gl_ObjectRayDirectionNV.z;
-   if (t >= gl_RayTminNV && t < gl_RayTmaxNV) {
+   if (t < gl_RayTmaxNV) {
       const vec3 p = gl_ObjectRayOriginNV + t * gl_ObjectRayDirectionNV;
       if ((p.x >= -0.5) && (p.x < 0.5) && (p.y >= -0.5) && (p.y < 0.5)) {
-         reportIntersectionNV(t, side);
+         ReportHit(t, t1, t2, hitSide, side);
       }
    }
 }
 
 
-void IntersectXZ(const float k, const uint side) {
+void IntersectXZ(const float k, inout float t1, inout float t2, inout uint hitSide, const uint side) {
    const float t = (k - gl_ObjectRayOriginNV.y) / gl_ObjectRayDirectionNV.y;
-   if (t >= gl_RayTminNV && t < gl_RayTmaxNV) {
+   if (t < gl_RayTmaxNV) {
       const vec3 p = gl_ObjectRayOriginNV + t * gl_ObjectRayDirectionNV;
       if ((p.x >= -0.5) && (p.x < 0.5) && (p.z >= -0.5) && (p.z < 0.5)) {
-         reportIntersectionNV(t, side);
+         ReportHit(t, t1, t2, hitSide, side);
       }
    }
 }
 
 
-void IntersectYZ(const float k, const uint side) {
+void IntersectYZ(const float k, inout float t1, inout float t2, inout uint hitSide, const uint side) {
    const float t = (k - gl_ObjectRayOriginNV.x) / gl_ObjectRayDirectionNV.x;
-   if (t >= gl_RayTminNV && t < gl_RayTmaxNV) {
+   if (t < gl_RayTmaxNV) {
       const vec3 p = gl_ObjectRayOriginNV + t * gl_ObjectRayDirectionNV;
       if ((p.y >= -0.5) && (p.y < 0.5) && (p.z >= -0.5) && (p.z < 0.5)) {
-         reportIntersectionNV(t, side);
+         ReportHit(t, t1, t2, hitSide, side);
       }
    }
 }
@@ -51,12 +65,37 @@ void IntersectYZ(const float k, const uint side) {
 void main() {
    const float k = 0.5; // box goes from -0.5 to +0.5 in each axis
 
-   IntersectXY(-k, 0);
-   IntersectXY(k, 1);
+   float t1 = gl_RayTmaxNV;
+   float t2 = gl_RayTmaxNV;
+   uint hitSide;
 
-   IntersectXZ(-k, 2);
-   IntersectXZ(k, 3);
+   IntersectXY(-k, t1, t2, hitSide, 0);
+   IntersectXY(k, t1, t2, hitSide, 1);
+   IntersectXZ(-k, t1, t2, hitSide, 2);
+   IntersectXZ(k, t1, t2, hitSide, 3);
+   IntersectYZ(-k, t1, t2, hitSide, 4);
+   IntersectYZ(k, t1, t2, hitSide, 5);
 
-   IntersectYZ(-k, 4);
-   IntersectYZ(k, 5);
+   Material material = materials[gl_InstanceCustomIndexNV];
+   if(material.type == MATERIAL_SMOKE) {
+      uint seed = InitRandomSeed(
+         InitRandomSeed(
+            InitRandomSeed(
+               InitRandomSeed(
+                  InitRandomSeed(gl_LaunchIDNV.x, gl_LaunchIDNV.y),
+                  uint(gl_WorldRayOriginNV.x)
+               ),
+               uint(gl_WorldRayOriginNV.y)
+            ),
+            uint(gl_WorldRayOriginNV.z)
+         ),
+         ubo.accumulatedFrameCount
+      );
+      const float hitDistance = max(t1, gl_RayTminNV) + material.materialParameter1 * log(RandomFloat(seed));
+      if ((hitDistance <= t2) && (t2 < gl_RayTmaxNV)) {
+         reportIntersectionNV(hitDistance, hitSide);
+      }
+   } else if ((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) || (gl_RayTminNV <= t2 && t2 < gl_RayTmaxNV)) {
+      reportIntersectionNV((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) ? t1 : t2, hitSide);
+   }
 }

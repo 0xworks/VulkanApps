@@ -33,6 +33,8 @@ Material DiffuseLight(const Texture& texture) {
    return Material{MATERIAL_DIFFUSELIGHT, 0.0f, 0.0f, texture.id, texture.param1, texture.param2};
 }
 
+// Smoke material requires custom intersection shader
+// and so can only work with models where IsProcedural() returns true.
 inline
 Material Smoke(const float density, const Texture& texture) {
    return Material{MATERIAL_SMOKE, -1.0f / std::max(density, 0.0000001f), 0.0f, texture.id, texture.param1, texture.param2};

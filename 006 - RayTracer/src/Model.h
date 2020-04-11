@@ -29,7 +29,8 @@ public:
    virtual std::array<glm::vec3, 2> GetBoundingBox() const;
 
 public:
-   static void SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex);
+   static void SetDefaultShaderHitGroupIndex(const uint32_t shaderHitGroupIndex);
+   static uint32_t GetDefaultShaderHitGroupIndex();
 
 private:
    std::vector<Vertex> m_Vertices;

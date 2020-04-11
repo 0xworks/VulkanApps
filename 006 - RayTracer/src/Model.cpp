@@ -80,6 +80,10 @@ std::array<glm::vec3, 2> Model::GetBoundingBox() const {
 };
 
 
-void Model::SetShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
+void Model::SetDefaultShaderHitGroupIndex(const uint32_t shaderHitGroupIndex) {
    sm_ShaderHitGroupIndex = shaderHitGroupIndex;
+}
+
+uint32_t Model::GetDefaultShaderHitGroupIndex() {
+   return sm_ShaderHitGroupIndex;
 }
