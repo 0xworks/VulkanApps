@@ -126,6 +126,7 @@ void RayTracer::CreateScene() {
    //CreateSceneCornellBoxWithBoxes();
    CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneBoxRotationTest();
+
 }
 
 
