@@ -18,10 +18,10 @@ void main() {
    const float theta = asin(hitPoint.y);
    const float pi = 3.1415926535897932384626433832795;
 
-   const vec2 texCoord = vec2((phi + pi) / (2*pi), 1 - (theta + pi/2) / pi);
+   const vec2 texCoord = vec2((phi + pi) / (2.0 * pi), 1 - (theta + pi / 2.0) / pi);
 
-   vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
-   vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
+   vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1.0);
+   vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0.0));
    // texCoords dont need transforming
 
    ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);

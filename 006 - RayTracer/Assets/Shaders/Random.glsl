@@ -27,7 +27,7 @@ float RandomFloat(inout uint seed) {
    // Float version using bitmask from Numerical Recipes
    const uint one = 0x3f800000;
    const uint msk = 0x007fffff;
-   return uintBitsToFloat(one | (msk & (RandomInt(seed) >> 9))) - 1;
+   return uintBitsToFloat(one | (msk & (RandomInt(seed) >> 9))) - 1.0;
 }
 
 
@@ -39,7 +39,7 @@ float RandomFloat(float minValue, float maxValue, inout uint seed) {
 vec2 RandomInUnitDisk(inout uint seed) {
    vec2 p;
    do {
-      p = 2 * vec2(RandomFloat(seed), RandomFloat(seed)) - 1;
+      p = 2.0 * vec2(RandomFloat(seed), RandomFloat(seed)) - 1.0;
    } while (dot(p, p) > 1.0f);
    return p;
 }
@@ -48,15 +48,15 @@ vec2 RandomInUnitDisk(inout uint seed) {
 vec3 RandomInUnitSphere(inout uint seed) {
    vec3 p;
    do {
-      p = 2 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1;
-   } while (dot(p, p) > 1.0f);
+      p = 2.0 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1.0;
+   } while (dot(p, p) > 1.0);
    return p;
 }
 
 
 vec3 RandomUnitVector(inout uint seed) {
-   const float a = RandomFloat(0.0f, 2.0f * 3.1415926535897932384626433832795f, seed);
-   const float z = RandomFloat(-1.0f, 1.0f, seed);
-   const float r = sqrt(1.0f - z * z);
+   const float a = RandomFloat(0.0, 2.0 * 3.1415926535897932384626433832795, seed);
+   const float z = RandomFloat(-1.0, 1.0, seed);
+   const float r = sqrt(1.0 - z * z);
    return vec3(r * cos(a), r * sin(a), z);
 }

@@ -174,7 +174,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
             } else if (chooseMaterial < 0.95) {
                // metal
                material = Metallic(
-                  FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                  FlatColor({0.5 * (RandomFloat(1.0f, 2.0f)), 0.5 * (RandomFloat(1.0f, 2.0f)), 0.5 * (RandomFloat(1.0f, 2.0f))}),
                   0.5f * RandomFloat()
                );
             } else {
@@ -287,7 +287,6 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
       glm::vec3 {0.0f, 2.0f, 0.0f}                /*centre*/,
       1.0f                                        /*radius*/,
       DiffuseLight(FlatColor({20.0f, 20.0f, 20.0f})) /*material*/
-
    ));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
@@ -1292,9 +1291,9 @@ void RayTracer::RecordCommandBuffers() {
    //       (without re-recording the entire command buffer)
    //       Could just shove them into the uniform buffer object instead.
    Constants constants = {
-      16                           /*max ray bounces*/,
-      0.0                          /*lens aperture*/,
-      glm::length(m_Direction)     /*lens focal length*/
+      8                           /*max ray bounces*/,
+      0.0                         /*lens aperture            DISABLED IN RAYGEN SHADER*/,
+      800.0                       /*lens focal length        DISABLED IN RAYGEN SHADER*/
    };
 
    for (uint32_t i = 0; i < m_CommandBuffers.size(); ++i) {
