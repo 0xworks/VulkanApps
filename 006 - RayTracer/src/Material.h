@@ -9,6 +9,7 @@ using uint = uint32_t;
 #include "Material.glsl"
 #include "Texture.h"
 
+#include <algorithm>
 
 inline
 Material Lambertian(const Texture& texture) {
@@ -16,9 +17,15 @@ Material Lambertian(const Texture& texture) {
 }
 
 
+// A blend between Lambertian (blend = 0.0) and Metallic (blend = 1.0)
 inline
-Material Metallic(const Texture& texture, float roughness) {
-   return Material{MATERIAL_METALLIC, roughness, 0.0f, texture.id, texture.param1, texture.param2};
+Material Blended(const Texture& texture, const float blend, const float roughness) {
+   return Material {MATERIAL_BLENDED, std::clamp(roughness, 0.0f, 0.99f), std::clamp(blend, 0.0f, 1.0f), texture.id, texture.param1, texture.param2};
+}
+
+inline
+Material Metallic(const Texture& texture, const float roughness) {
+   return Material{MATERIAL_METALLIC,  std::clamp(roughness, 0.0f, 0.99f), 1.0f, texture.id, texture.param1, texture.param2};
 }
 
 

@@ -94,22 +94,48 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 }
 
 
-RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, uint randomSeed) {
+RayPayload ScatterLambertian(const vec3 hitPoint, const vec3 normal, const vec3 color, inout uint randomSeed) {
+   const vec3 target = hitPoint + normal + 0.99 * RandomUnitVector(randomSeed);
+   return RayPayload(vec4(color, gl_HitTNV), vec4(0.0), vec4(normalize(target - hitPoint), 1.0), randomSeed);
+}
+
+
+RayPayload ScatterMetallic(const vec3 hitPoint, const vec3 normal, const vec3 color, const float roughness, inout uint randomSeed) {
+   const vec3 scatterDirection = normalize(reflect(gl_WorldRayDirectionNV, normal) + roughness * RandomInUnitSphere(randomSeed));
+   return RayPayload(vec4(color, gl_HitTNV), vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
+}
+
+
+RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const uint materialIndex, inout uint randomSeed) {
    Material material = materials[materialIndex];
 
    switch(material.type) {
 
       case MATERIAL_LAMBERTIAN: {
-         const vec3 target = hitPoint + normal + 0.99 * RandomUnitVector(randomSeed);
-         const vec3 scatterDirection = normalize(target - hitPoint);
-         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
-         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
+         return ScatterLambertian(hitPoint, normal, Color(hitPoint, normal, texCoord, material), randomSeed);
+      }
+
+      case MATERIAL_BLENDED: {
+         const vec3 color = Color(hitPoint, normal, texCoord, material);
+         const vec3 colorSpecular = color * material.materialParameter2;
+         const vec3 colorDiffuse = color * (1.0 - material.materialParameter2);
+
+         float specularChance = dot(colorSpecular, vec3(1.0/3.0));
+         float diffuseChance = dot(colorDiffuse, vec3(1.0/3.0));
+         float sum = specularChance + diffuseChance;
+         specularChance /= sum;
+         diffuseChance /= sum;
+
+         const float select = RandomFloat(randomSeed);
+         if (select < specularChance) {
+             return ScatterMetallic(hitPoint, normal, colorSpecular / specularChance, material.materialParameter1, randomSeed);
+         } else {
+            return ScatterLambertian(hitPoint, normal, colorDiffuse / diffuseChance, randomSeed);
+         }
       }
 
       case MATERIAL_METALLIC: {
-         const vec3 color = Color(hitPoint, normal, texCoord, material);
-         const vec3 scatterDirection = reflect(gl_WorldRayDirectionNV.xyz, normal) + material.materialParameter1 * RandomInUnitSphere(randomSeed);
-         return RayPayload(vec4(color, gl_HitTNV), vec4(0.0), vec4(scatterDirection, dot(scatterDirection, normal) > 0.0), randomSeed);
+         return ScatterMetallic(hitPoint, normal, Color(hitPoint, normal, texCoord, material), material.materialParameter1, randomSeed);
       }
 
       case MATERIAL_DIELECTRIC: {
@@ -117,14 +143,14 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
          float ni_over_nt;
          float reflect_prob;
          float cosine;
-         if (dot(gl_WorldRayDirectionNV.xyz, normal) > 0.0) {
+         if (dot(gl_WorldRayDirectionNV, normal) > 0.0) {
             outward_normal = -normal;
             ni_over_nt = material.materialParameter1;
-            cosine = ni_over_nt * dot(gl_WorldRayDirectionNV.xyz, normal) / length(gl_WorldRayDirectionNV.xyz);
+            cosine = ni_over_nt * dot(gl_WorldRayDirectionNV, normal) / length(gl_WorldRayDirectionNV);
          } else {
             outward_normal = normal;
             ni_over_nt = 1.0 / material.materialParameter1;
-            cosine = -dot(gl_WorldRayDirectionNV.xyz, normal) / length(gl_WorldRayDirectionNV.xyz);
+            cosine = -dot(gl_WorldRayDirectionNV, normal) / length(gl_WorldRayDirectionNV);
          }
          const vec3 refracted = refract(gl_WorldRayDirectionNV.xyz, outward_normal, ni_over_nt);
 
@@ -138,7 +164,7 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
             reflect_prob = 1.0;
          }
          if(RandomFloat(randomSeed) < reflect_prob) {
-            const vec3 reflected = reflect(gl_WorldRayDirectionNV.xyz, normal);
+            const vec3 reflected = reflect(gl_WorldRayDirectionNV, normal);
             return RayPayload(attenuationAndDistance, vec4(0.0), vec4(reflected, 1), randomSeed);
          }
          return RayPayload(attenuationAndDistance, vec4(0.0), vec4(refracted, 1), randomSeed);

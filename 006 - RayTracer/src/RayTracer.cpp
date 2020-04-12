@@ -127,8 +127,8 @@ void RayTracer::CreateScene() {
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    //CreateSceneRayTracingInOneWeekend();
-   //CreateSceneRayTracingTheNextWeekTexturesAndLight();
-   CreateSceneCornellBoxWithBoxes();
+   CreateSceneRayTracingTheNextWeekTexturesAndLight();
+   //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
@@ -296,13 +296,12 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
       1.0f                             /*radius*/,
-      Lambertian(                      /*material*/
-         Marble(                          /*texture*/
-            {1.0f, 1.0f, 1.0f}               /*color*/,
-            4.0f                             /*scale*/,
-            0.5f                             /*weight*/,
-            7                                /*depth*/
-         )
+      Blended(                         /*material*/
+         FlatColor(                          /*texture*/
+            {0.0f, 1.0f, 1.0f}               /*color*/
+         ),
+         0.04f                               /*blend*/,
+         0.0f                                /*roughness*/
       )
    ));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(

@@ -3,10 +3,11 @@
 //
 
 #define MATERIAL_LAMBERTIAN   0
-#define MATERIAL_METALLIC     1
-#define MATERIAL_DIELECTRIC   2
-#define MATERIAL_DIFFUSELIGHT 3
-#define MATERIAL_SMOKE        4
+#define MATERIAL_BLENDED      1
+#define MATERIAL_METALLIC     2
+#define MATERIAL_DIELECTRIC   3
+#define MATERIAL_DIFFUSELIGHT 4
+#define MATERIAL_SMOKE        5
 
 // Be careful with alignment...
 struct Material {
