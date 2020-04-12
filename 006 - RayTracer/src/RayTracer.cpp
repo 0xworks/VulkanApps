@@ -1043,14 +1043,12 @@ void RayTracer::CreatePipeline() {
 
    m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI);
 
-   m_Device.waitIdle();
-
    // Create buffer for the shader binding table
-   const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaders;
+   const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaderGroups;
 
    std::vector<uint8_t> shaderHandleStorage;
    shaderHandleStorage.resize(size);
-   m_Device.getRayTracingShaderGroupHandlesNV<uint8_t>(m_Pipeline, 0, eNumShaders, shaderHandleStorage);
+   m_Device.getRayTracingShaderGroupHandlesNV<uint8_t>(m_Pipeline, 0, eNumShaderGroups, shaderHandleStorage);
 
    m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
    m_ShaderBindingTable->CopyFromHost(0, size, shaderHandleStorage.data());
