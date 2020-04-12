@@ -128,9 +128,9 @@ void RayTracer::CreateScene() {
 
    //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
-   //CreateSceneCornellBoxWithBoxes();
+   CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
-   CreateSceneRayTracingTheNextWeekFinal();
+   //CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
 
 }

@@ -100,10 +100,10 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
    switch(material.type) {
 
       case MATERIAL_LAMBERTIAN: {
+         const vec3 target = hitPoint + normal + 0.99 * RandomUnitVector(randomSeed);
+         const vec3 scatterDirection = normalize(target - hitPoint);
          const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
-         const vec3 target = hitPoint + normal + RandomUnitVector(randomSeed);
-         const vec3 scatterDirection = target - hitPoint;
-         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, dot(gl_WorldRayDirectionNV.xyz, normal) < 0), randomSeed);
+         return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
       }
 
       case MATERIAL_METALLIC: {
