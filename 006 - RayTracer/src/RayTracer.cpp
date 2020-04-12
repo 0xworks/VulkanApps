@@ -178,7 +178,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
                   0.5f * RandomFloat()
                );
             } else {
-               material = Dielectric(1.5f);
+               material = Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f);
             }
             m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
          }
@@ -188,8 +188,13 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    // the three main spheres...
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
-      1.0f                           /*radius*/,
-      Dielectric(1.5f)               /*material*/
+      1.0f                            /*radius*/,
+      Dielectric(                     /*material*/
+         FlatColor(                      /*texture*/
+            {1.0f, 1.0f, 1.0f}
+         ),
+         1.5f                         /*refractive index*/
+      )
    ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
@@ -474,13 +479,13 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
    // moving sphere. Not done.
 
    // glass sphere
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {18.0f, -128.0f, -45.0f}, 50.0f, Dielectric(1.5f)));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {18.0f, -128.0f, -45.0f}, 50.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
 
    // metal sphere
    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {278.0f, -128.0f, -145.0f}, 50.0f, Metallic(FlatColor({0.8f, 0.8f, 0.9f}), 1.0f)));
 
    // glass ball filled with blue smoke
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 70.0f, Dielectric(1.5f)));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 70.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 69.99f, Smoke(0.2f, FlatColor({0.2f, 0.4f, 0.9f}))));
 
    // polystyrene cube

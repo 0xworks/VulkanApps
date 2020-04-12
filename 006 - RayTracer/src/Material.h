@@ -23,8 +23,8 @@ Material Metallic(const Texture& texture, float roughness) {
 
 
 inline
-Material Dielectric(const float refractiveIndex) {
-   return Material{MATERIAL_DIELECTRIC, refractiveIndex};
+Material Dielectric(const Texture& texture, const float refractiveIndex) {
+   return Material{MATERIAL_DIELECTRIC, refractiveIndex, 0.0f, texture.id, texture.param1, texture.param2};
 }
 
 
