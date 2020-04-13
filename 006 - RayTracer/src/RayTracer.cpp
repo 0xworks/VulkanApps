@@ -24,6 +24,9 @@ using vec3 = glm::vec3;
 
 #include <random>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #define M_PI 3.14159265358979323846f
 
 std::unique_ptr<Vulkan::Application> CreateApplication(int argc, const char* argv[]) {
@@ -67,6 +70,7 @@ RayTracer::~RayTracer() {
    DestroyUniformBuffers();
    DestroyStorageImages();
    DestroyAccelerationStructures();
+   DestroyTextureResources();
    DestroyMaterialBuffer();
    DestroyAABBBuffer();
    DestroyOffsetBuffer();
@@ -81,7 +85,25 @@ std::vector<const char*> RayTracer::GetRequiredInstanceExtensions() {
 
 
 std::vector<const char*> RayTracer::GetRequiredDeviceExtensions() {
-   return {VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, VK_NV_RAY_TRACING_EXTENSION_NAME, VK_KHR_MAINTENANCE3_EXTENSION_NAME};
+   return {VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, VK_NV_RAY_TRACING_EXTENSION_NAME, VK_KHR_MAINTENANCE3_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME};
+}
+
+
+vk::PhysicalDeviceFeatures RayTracer::GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures availableFeatures) {
+   vk::PhysicalDeviceFeatures features;
+   if (availableFeatures.samplerAnisotropy) {
+      features.setSamplerAnisotropy(true);
+   } else {
+      ASSERT(false, "Device does not support sampler anisotrophy")
+   }
+   return features;
+}
+
+
+void* RayTracer::GetRequiredPhysicalDeviceFeaturesEXT() {
+   static vk::PhysicalDeviceDescriptorIndexingFeatures indexingFeatures;
+   indexingFeatures.runtimeDescriptorArray = 1;
+   return &indexingFeatures;
 }
 
 
@@ -103,6 +125,7 @@ void RayTracer::Init() {
    CreateOffsetBuffer();
    CreateAABBBuffer();
    CreateMaterialBuffer();
+   CreateTextureResources();
    CreateAccelerationStructures();
    CreateStorageImages();
    CreateUniformBuffers();
@@ -121,6 +144,8 @@ void RayTracer::CreateScene() {
    Sphere::SetDefaultShaderHitGroupIndex(eSphereHitGroup - eFirstHitGroup);
    Box::SetDefaultShaderHitGroupIndex(eBoxHitGroup - eFirstHitGroup);
 
+   m_Scene.AddTextureResource("Earth", "Assets/Textures/earthmap.jpg");
+
    SphereInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Sphere>()));
    BoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>(false)));
    ProceduralBoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>(true)));
@@ -130,7 +155,8 @@ void RayTracer::CreateScene() {
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
-   CreateSceneRayTracingTheNextWeekFinal();
+   CreateSceneCornellBoxWithEarth();
+   //CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
 
 }
@@ -238,9 +264,9 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    // small random spheres
    for (int a = -11; a < 11; a++) {
       for (int b = -11; b < 11; b++) {
-         float chooseMaterial = RandomFloat();
-         float chooseTexture = RandomFloat();
-         vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
+         const float chooseMaterial = RandomFloat();
+         const float chooseTexture = RandomFloat();
+         const vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
          if (
             (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
             (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
@@ -355,19 +381,19 @@ void RayTracer::CreateCornellBox(glm::vec3 size) {
    m_Eye = {0.0f, 0.0f, 800.0f};
    m_Direction = {0.0f, 0.0f, -150.0f};
 
-   Material red = Lambertian(FlatColor({0.65f, 0.05f, 0.05f}));
-   Material green = Lambertian(FlatColor({0.12f, 0.45f, 0.15f}));
-   Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
-   Material light = Light(FlatColor({15.0f, 15.0f, 15.0f}), 1.0f);
+   const Material red = Lambertian(FlatColor({0.65f, 0.05f, 0.05f}));
+   const Material green = Lambertian(FlatColor({0.12f, 0.45f, 0.15f}));
+   const Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
+   const Material light = Light(FlatColor({15.0f, 15.0f, 15.0f}), 1.0f);
 
-   glm::vec3 halfSize = size / 2.0f;
-   glm::vec2 lightSize = {130.0f, 105.0f};
+   const glm::vec3 halfSize = size / 2.0f;
+   const glm::vec2 lightSize = {130.0f, 105.0f};
 
-   glm::vec3 clockwiseY90 = {glm::radians(0.0f), glm::radians(90.0f), glm::radians(0.0f)};
-   glm::vec3 counterClockwiseY90 = {glm::radians(0.0f), glm::radians(-90.0f), glm::radians(0.0f)};
+   const glm::vec3 clockwiseY90 = {glm::radians(0.0f), glm::radians(90.0f), glm::radians(0.0f)};
+   const glm::vec3 counterClockwiseY90 = {glm::radians(0.0f), glm::radians(-90.0f), glm::radians(0.0f)};
 
-   glm::vec3 clockwiseX90 = {glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)};
-   glm::vec3 counterClockwiseX90 = {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)};
+   const glm::vec3 clockwiseX90 = {glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)};
+   const glm::vec3 counterClockwiseX90 = {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)};
 
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
       glm::vec3{-halfSize.x, 0.0f, -halfSize.z},
@@ -414,44 +440,59 @@ void RayTracer::CreateCornellBox(glm::vec3 size) {
 
 
 void RayTracer::CreateSceneCornellBoxWithBoxes() {
-   glm::vec3 size = {555.0f, 555.0f, 555.0f};
-   glm::vec3 halfSize = size / 2.0f;
+   const glm::vec3 size = {555.0f, 555.0f, 555.0f};
+   const glm::vec3 halfSize = size / 2.0f;
 
-   Material white = Lambertian(FlatColor({0.73, 0.73, 0.73}));
+   const Material white = Lambertian(FlatColor({0.73, 0.73, 0.73}));
 
    CreateCornellBox(size);
 
-   glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
-   glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, -(size.y - box1Size.y) * 0.5f, -halfSize.z * 1.25};
-   glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
+   const glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
+   const glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, -(size.y - box1Size.y) * 0.5f, -halfSize.z * 1.25};
+   const glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
    m_Scene.AddInstance(std::make_unique<BoxInstance>(box1Centre, box1Size, box1Rotation, white));
 
-   glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
-   glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, -(size.y - box2Size.y) * 0.5f, -halfSize.z * 0.65};
-   glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
+   const glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
+   const glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, -(size.y - box2Size.y) * 0.5f, -halfSize.z * 0.65};
+   const glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
    m_Scene.AddInstance(std::make_unique<BoxInstance>(box2Centre, box2Size, box2Rotation, white));
 
 }
 
 
 void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
-   glm::vec3 size = {555.0f, 555.0f, 555.0f};
-   glm::vec3 halfSize = size / 2.0f;
+   const glm::vec3 size = {555.0f, 555.0f, 555.0f};
+   const glm::vec3 halfSize = size / 2.0f;
 
-   Material smoke = Smoke(0.01f, FlatColor({0.0f, 0.0f, 0.0f}));
-   Material fog = Smoke(0.01f, FlatColor({1.0f, 1.0f, 1.0f}));
+   const Material smoke = Smoke(0.01f, FlatColor({0.0f, 0.0f, 0.0f}));
+   const Material fog = Smoke(0.01f, FlatColor({1.0f, 1.0f, 1.0f}));
 
    CreateCornellBox(size);
 
-   glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
-   glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, (-(size.y - box1Size.y) * 0.5f), -halfSize.z * 1.25};
-   glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
+   const glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
+   const glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, (-(size.y - box1Size.y) * 0.5f), -halfSize.z * 1.25};
+   const glm::vec3 box1Rotation = {glm::radians(0.0f), glm::radians(-15.0f), glm::radians(0.0f)};
    m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(box1Centre, box1Size, box1Rotation, smoke));
 
-   glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
-   glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - box2Size.y) * 0.5f), -halfSize.z * 0.65};
-   glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
+   const glm::vec3 box2Size = {165.0f, 165.0f, 165.0f};
+   const glm::vec3 box2Centre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - box2Size.y) * 0.5f), -halfSize.z * 0.65};
+   const glm::vec3 box2Rotation = {glm::radians(0.0f), glm::radians(18.0f), glm::radians(0.0f)};
    m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(box2Centre, box2Size, box2Rotation, fog));
+}
+
+
+void RayTracer::CreateSceneCornellBoxWithEarth() {
+   const glm::vec3 size = {555.0f, 555.0f, 555.0f};
+   const glm::vec3 halfSize = size / 2.0f;
+
+   const Material smoke = Smoke(0.01f, FlatColor({0.0f, 0.0f, 0.0f}));
+   const Material fog = Smoke(0.01f, FlatColor({1.0f, 1.0f, 1.0f}));
+
+   CreateCornellBox(size);
+
+   const float earthSize = 165.0f;
+   const glm::vec3 earthCentre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - earthSize) * 0.5f), -halfSize.z * 0.65};
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(earthCentre, earthSize / 2.0f, Lambertian(Texture{m_Scene.GetTextureId("Earth")})));
 }
 
 
@@ -462,17 +503,17 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
    m_Eye = {-200.0f, 0.0f, 600.0f};
    m_Direction = {50.0f, 1.0f, -140.0f};
 
-   Material green = Lambertian(FlatColor({0.48f, 0.83f, 0.53f}));
-   Material light = Light(FlatColor({7000.0f, 7000.0f, 7000.0f}), 27.0f);
-   Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
-   Material black = Lambertian(FlatColor({0.0f, 0.0f, 0.0f}));
+   const Material green = Lambertian(FlatColor({0.48f, 0.83f, 0.53f}));
+   const Material light = Light(FlatColor({7000.0f, 7000.0f, 7000.0f}), 27.0f);
+   const Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
+   const Material black = Lambertian(FlatColor({0.0f, 0.0f, 0.0f}));
 
    const int boxesPerSize = 20;
    const float boxSize = 100.0f;
    for (int i = 0; i < boxesPerSize; ++i) {
       for (int j = 0; j < boxesPerSize; ++j) {
-         glm::vec3 centre = {1278.0f - ((i + 0.5f) * boxSize), -278.0f, 1000.0f - ((j + 0.5f) * boxSize)};
-         glm::vec3 size = {boxSize, RandomFloat(1.0f, 101.0f), boxSize};
+         const glm::vec3 centre = {1278.0f - ((i + 0.5f) * boxSize), -278.0f, 1000.0f - ((j + 0.5f) * boxSize)};
+         const glm::vec3 size = {boxSize, RandomFloat(1.0f, 101.0f), boxSize};
          m_Scene.AddInstance(std::make_unique<BoxInstance>(centre, size, glm::vec3 {}, green));
       }
    }
@@ -480,27 +521,29 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
    // moving sphere. Not done.
 
    // glass sphere
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {18.0f, -128.0f, -45.0f}, 50.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{18.0f, -128.0f, -45.0f}, 50.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
 
    // metal sphere
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {278.0f, -128.0f, -145.0f}, 50.0f, Metallic(FlatColor({0.8f, 0.8f, 0.9f}), 1.0f)));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{278.0f, -128.0f, -145.0f}, 50.0f, Metallic(FlatColor({0.8f, 0.8f, 0.9f}), 1.0f)));
 
    // glass ball filled with blue smoke
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 70.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {-82.0f, -128.0f, -145.0f}, 69.99f, Smoke(0.2f, FlatColor({0.2f, 0.4f, 0.9f}))));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-82.0f, -128.0f, -145.0f}, 70.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-82.0f, -128.0f, -145.0f}, 69.99f, Smoke(0.2f, FlatColor({0.2f, 0.4f, 0.9f}))));
 
    // polystyrene cube
    glm::mat4x4 transform = glm::rotate(glm::translate(glm::identity<glm::mat4x4>(), {213.0f, -8.0f, -560.0f}), glm::radians(15.0f), {0.0f, 1.0f, 0.0f});
    for (int i = 0; i < 1000; ++i) {
-      glm::vec4 centre = {RandomFloat(0.0f, 165.0f), RandomFloat(0.0f, 165.0f), RandomFloat(0.0f, 165.0f), 1.0f};
-      glm::vec4 centreTransformed = transform * centre;
+      const glm::vec4 centre = {RandomFloat(0.0f, 165.0f), RandomFloat(0.0f, 165.0f), RandomFloat(0.0f, 165.0f), 1.0f};
+      const glm::vec4 centreTransformed = transform * centre;
       m_Scene.AddInstance(std::make_unique<SphereInstance>(centreTransformed, 10.0f, white));
    }
 
    // marble ball
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {58.0f, 2.0f, -300.0f}, 80.0f, Lambertian(Marble({1.0f, 1.0f, 1.0f}, 0.01f, 0.5f, 7))));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{58.0f, 2.0f, -300.0f}, 80.0f, Lambertian(Marble({1.0f, 1.0f, 1.0f}, 0.01f, 0.5f, 7))));
 
-   // earth textured sphere: Not done.
+   // earth textured sphere
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-122.0f, -78.0f, -400.0f}, 100.0f, Lambertian(Texture{m_Scene.GetTextureId("Earth")})));
+
 
    // ceiling
    //m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f - 1000.0f - 150.f, 276.0f, -278.0f}, glm::vec2{2000.0f, 4132.5f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, black));
@@ -653,6 +696,80 @@ void RayTracer::CreateMaterialBuffer() {
 
 void RayTracer::DestroyMaterialBuffer() {
    m_MaterialBuffer.reset(nullptr);
+}
+
+
+void RayTracer::CreateTextureResources() {
+   for (const auto& textureFileName : m_Scene.GetTextureFileNames()) {
+      int texWidth;
+      int texHeight;
+      int texChannels;
+
+      stbi_uc* pixels = stbi_load(textureFileName.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+      vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth) * static_cast<vk::DeviceSize>(texHeight) * 4;
+      uint32_t mipLevels = 1; // static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+
+      if (!pixels) {
+         ASSERT(false, "ERROR: failed to load texture '{}'", textureFileName);
+      }
+
+      Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+      stagingBuffer.CopyFromHost(0, size, pixels);
+
+      stbi_image_free(pixels);
+
+      auto texture = std::make_unique<Vulkan::Image>(
+         m_Device,
+         m_PhysicalDevice,
+         texWidth,
+         texHeight,
+         mipLevels,
+         vk::SampleCountFlagBits::e1,
+         vk::Format::eR8G8B8A8Unorm,
+         vk::ImageTiling::eOptimal,
+         vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+         vk::MemoryPropertyFlagBits::eDeviceLocal
+      );
+      TransitionImageLayout(texture->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, mipLevels);
+      CopyBufferToImage(stagingBuffer.m_Buffer, texture->m_Image, texWidth, texHeight);
+      GenerateMIPMaps(texture->m_Image, vk::Format::eR8G8B8A8Unorm, texWidth, texHeight, mipLevels);
+
+      texture->CreateImageView(vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor, mipLevels);
+
+      m_Textures.emplace_back(std::move(texture));
+   }
+
+   vk::SamplerCreateInfo ci = {
+      {}                                  /*flags*/,
+      vk::Filter::eLinear                 /*magFilter*/,
+      vk::Filter::eLinear                 /*minFilter*/,
+      vk::SamplerMipmapMode::eLinear      /*mipmapMode*/,
+      vk::SamplerAddressMode::eRepeat     /*addressModeU*/,
+      vk::SamplerAddressMode::eRepeat     /*addressModeV*/,
+      vk::SamplerAddressMode::eRepeat     /*addressModeW*/,
+      0.0f                                /*mipLodBias*/,
+      true                                /*anisotropyEnable*/,
+      16                                  /*maxAnisotropy*/,
+      false                               /*compareEnable*/,
+      vk::CompareOp::eAlways              /*compareOp*/,
+      0.0f                                /*minLod*/,
+      static_cast<float>(1/*mipLevels*/)       /*maxLod*/,
+      vk::BorderColor::eFloatOpaqueBlack  /*borderColor*/,
+      false                               /*unnormalizedCoordinates*/
+   };
+   m_TextureSampler = m_Device.createSampler(ci);
+}
+
+
+void RayTracer::DestroyTextureResources() {
+   if (m_Device && m_TextureSampler) {
+      m_Device.destroy(m_TextureSampler);
+      m_TextureSampler = nullptr;
+   }
+   for (auto& texture : m_Textures) {
+      texture.reset(nullptr);
+   }
+   m_Textures.clear();
 }
 
 
@@ -857,8 +974,16 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_MATERIALBUFFER                    /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      {vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
+      vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV  /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
+   };
+
+   vk::DescriptorSetLayoutBinding textureSamplerLB = {
+      BINDING_TEXTURESAMPLERS                     /*binding*/,
+      vk::DescriptorType::eCombinedImageSampler   /*descriptorType*/,
+      static_cast<uint32_t>(m_Textures.size())    /*descriptorCount*/,
+      vk::ShaderStageFlagBits::eClosestHitNV      /*stageFlags*/,
+      nullptr                                     /*pImmutableSamplers*/
    };
 
    std::array<vk::DescriptorSetLayoutBinding, BINDING_NUMBINDINGS> layoutBindings = {
@@ -869,7 +994,8 @@ void RayTracer::CreateDescriptorSetLayout() {
       vertexBufferLB,
       indexBufferLB,
       offsetBufferLB,
-      materialBufferLB
+      materialBufferLB,
+      textureSamplerLB
    };
 
    m_DescriptorSetLayout = m_Device.createDescriptorSetLayout({
@@ -1074,7 +1200,7 @@ void RayTracer::DestroyPipeline() {
 
 
 void RayTracer::CreateDescriptorPool() {
-   std::array<vk::DescriptorPoolSize, 4> typeCounts = {
+   std::array<vk::DescriptorPoolSize, 5> typeCounts = {
       vk::DescriptorPoolSize {
          vk::DescriptorType::eAccelerationStructureNV,
          static_cast<uint32_t>(m_SwapChainFrameBuffers.size())
@@ -1089,7 +1215,11 @@ void RayTracer::CreateDescriptorPool() {
       },
       vk::DescriptorPoolSize {
          vk::DescriptorType::eStorageBuffer,
-         static_cast<uint32_t>(5 * m_SwapChainFrameBuffers.size()) // 5 storage buffers:  Vertex, Index, Offset, Sphere, Material
+         static_cast<uint32_t>(4 * m_SwapChainFrameBuffers.size()) // 4 storage buffers:  Vertex, Index, Offset, Material
+      },
+      vk::DescriptorPoolSize {
+         vk::DescriptorType::eCombinedImageSampler,
+         static_cast<uint32_t>(m_Textures.size() * m_SwapChainFrameBuffers.size())
       }
    };
 
@@ -1249,6 +1379,27 @@ void RayTracer::CreateDescriptorSets() {
          nullptr                                      /*pTexelBufferView*/
       };
 
+      std::vector<vk::DescriptorImageInfo> textureImageDescriptors;
+      textureImageDescriptors.reserve(m_Textures.size());
+      for(const auto& texture : m_Textures) {
+         textureImageDescriptors.emplace_back(
+            m_TextureSampler                          /*sampler  (can use same sampler for multiple textures)*/,
+            texture->m_ImageView                      /*imageView*/,
+            vk::ImageLayout::eShaderReadOnlyOptimal   /*imageLayout*/
+         );
+      }
+
+      vk::WriteDescriptorSet textureSamplersWrite = {
+         m_DescriptorSets[i]                          /*dstSet*/,
+         BINDING_TEXTURESAMPLERS                      /*dstBinding*/,
+         0                                            /*dstArrayElement*/,
+         static_cast<uint32_t>(m_Textures.size())     /*descriptorCount*/,
+         vk::DescriptorType::eCombinedImageSampler    /*descriptorType*/,
+         textureImageDescriptors.data()               /*pImageInfo*/,
+         nullptr                                      /*pBufferInfo*/,
+         nullptr                                      /*pTexelBufferView*/
+      };
+
       std::array<vk::WriteDescriptorSet, BINDING_NUMBINDINGS> writeDescriptorSets = {
          accelerationStructureWrite,
          accumulationImageWrite,
@@ -1257,7 +1408,8 @@ void RayTracer::CreateDescriptorSets() {
          vertexBufferWrite,
          indexBufferWrite,
          offsetBufferWrite,
-         materialBufferWrite
+         materialBufferWrite,
+         textureSamplersWrite
       };
 
       m_Device.updateDescriptorSets(writeDescriptorSets, nullptr);

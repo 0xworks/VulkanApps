@@ -1,3 +1,5 @@
+#extension GL_EXT_nonuniform_qualifier : require
+
 #include "Material.glsl"
 #include "Random.glsl"
 #include "RayPayload.glsl"
@@ -6,7 +8,7 @@
 
 layout(set = 0, binding = BINDING_TLAS) uniform accelerationStructureNV world;
 layout(set = 0, binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
-//layout(set = 0, binding = BINDING_TEXTUREBUFFER) readonly buffer TextureArray { SamplerSomething textures[]; };
+layout(set = 0, binding = BINDING_TEXTURESAMPLERS) uniform sampler2D[] samplers;
 
 layout(location = 1) rayPayloadNV RayPayload ray1;
 
@@ -88,7 +90,7 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 
       default: {
          // sample from textures, indexed by textureId
-         return material.textureParam1.rgb; // TODO
+         return texture(samplers[material.textureId], texCoord).rgb;
       }
    }
 }

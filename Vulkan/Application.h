@@ -93,6 +93,11 @@ protected:
    // Base implementation returns nothing
    virtual vk::PhysicalDeviceFeatures GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures availableFeatures);
 
+   // Return physical device extension features required by derived app.
+   // This is passed as the pNext parameter of device create info
+   // Base implementation returns nullptr
+   virtual void* GetRequiredPhysicalDeviceFeaturesEXT();
+
    virtual bool IsPhysicalDeviceSuitable(vk::PhysicalDevice physicalDevice);
 
    virtual void CreateDevice();

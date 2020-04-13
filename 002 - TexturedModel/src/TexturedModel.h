@@ -16,7 +16,7 @@ public:
       alignas(16) glm::mat4 MVP; // Model View Projection
    };
 
-   vk::PhysicalDeviceFeatures GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures);
+   virtual vk::PhysicalDeviceFeatures GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures) override;
 
    virtual void Init() override;
 

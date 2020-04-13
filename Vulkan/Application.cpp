@@ -293,6 +293,11 @@ vk::PhysicalDeviceFeatures Application::GetRequiredPhysicalDeviceFeatures(vk::Ph
 }
 
 
+void* Application::GetRequiredPhysicalDeviceFeaturesEXT() {
+   return nullptr;
+}
+
+
 bool Application::IsPhysicalDeviceSuitable(vk::PhysicalDevice physicalDevice) {
    bool extensionsSupported = false;
    bool swapChainAdequate = false;
@@ -323,9 +328,6 @@ void Application::CreateDevice() {
       );
    }
 
-   vk::PhysicalDeviceFeatures deviceFeatures = {};
-   deviceFeatures.samplerAnisotropy = true;
-
    std::vector<const char*> deviceExtensions = GetRequiredDeviceExtensions();
 
    // We always need swap chain extension
@@ -341,8 +343,9 @@ void Application::CreateDevice() {
       nullptr                                          /*ppEnabledLayerNames*/,
       static_cast<uint32_t>(deviceExtensions.size())   /*enabledExtensionCount*/,
       deviceExtensions.data()                          /*ppEnabledExtensionNames*/,
-      & m_EnabledPhysicalDeviceFeatures                 /*pEnabledFeatures*/
+      &m_EnabledPhysicalDeviceFeatures                 /*pEnabledFeatures*/
    };
+   ci.pNext = GetRequiredPhysicalDeviceFeaturesEXT();
 
    std::vector<const char*> layers = {"VK_LAYER_KHRONOS_validation"};
    if (m_EnableValidation) {

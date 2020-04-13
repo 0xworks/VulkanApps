@@ -13,8 +13,10 @@ public:
    RayTracer(int argc, const char* argv[]);
    ~RayTracer();
 
-   std::vector<const char*> GetRequiredInstanceExtensions() override;
-   std::vector<const char*> GetRequiredDeviceExtensions() override;
+   virtual std::vector<const char*> GetRequiredInstanceExtensions() override;
+   virtual std::vector<const char*> GetRequiredDeviceExtensions() override;
+   virtual vk::PhysicalDeviceFeatures GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures) override;
+   virtual void* GetRequiredPhysicalDeviceFeaturesEXT() override;
 
    virtual void Init() override;
 
@@ -34,6 +36,9 @@ public:
 
    void CreateMaterialBuffer();
    void DestroyMaterialBuffer();
+
+   void CreateTextureResources();
+   void DestroyTextureResources();
 
    void CreateAccelerationStructures();
    void DestroyAccelerationStructures();
@@ -74,6 +79,7 @@ private:
    void CreateCornellBox(const glm::vec3 size);
    void CreateSceneCornellBoxWithBoxes();
    void CreateSceneCornellBoxWithSmokeBoxes();
+   void CreateSceneCornellBoxWithEarth();
    void CreateSceneRayTracingTheNextWeekFinal();
 
 
@@ -83,8 +89,9 @@ private:
    std::unique_ptr<Vulkan::IndexBuffer> m_IndexBuffer;
    std::unique_ptr<Vulkan::Buffer> m_OffsetBuffer;
    std::unique_ptr<Vulkan::Buffer> m_AABBBuffer;
-//   std::unique_ptr<Vulkan::Buffer> m_SphereBuffer;
    std::unique_ptr<Vulkan::Buffer> m_MaterialBuffer;
+   std::vector<std::unique_ptr<Vulkan::Image>> m_Textures;
+   vk::Sampler m_TextureSampler;
    std::unique_ptr<Vulkan::Image> m_OutputImage;
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
    uint32_t m_AccumulatedImageCount = 0;

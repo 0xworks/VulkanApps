@@ -27,6 +27,13 @@ Scene::AddModel(std::unique_ptr<Model> model) {
 }
 
 
+uint32_t Scene::AddTextureResource(std::string name, std::string fileName) {
+   m_TextureNames.emplace_back(std::move(name));
+   m_TextureFileNames.emplace_back(std::move(fileName));
+   return static_cast<uint32_t>(m_TextureNames.size());
+}
+
+
 uint32_t
 Scene::AddInstance(std::unique_ptr<Instance> instance) {
    m_Instances.emplace_back(std::move(instance));
@@ -36,6 +43,24 @@ Scene::AddInstance(std::unique_ptr<Instance> instance) {
 
 const std::vector<std::unique_ptr<Model>>& Scene::GetModels() const {
    return m_Models;
+}
+
+
+const std::vector<std::string>& Scene::GetTextureFileNames() const {
+   return m_TextureFileNames;
+}
+
+
+int Scene::GetTextureId(const std::string& name) const {
+   int i = 0;
+   for (const auto& existingName : m_TextureNames) {
+      if (existingName == name) {
+         return i;
+      }
+      ++i;
+   }
+   ASSERT(false, "ERROR: Texture '{}' not found", name);
+   return ~0;
 }
 
 

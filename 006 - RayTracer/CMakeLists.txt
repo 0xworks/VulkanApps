@@ -71,6 +71,7 @@ set(
 
 set(
    texture_files
+   "Assets/Textures/earthmap.jpg"
 )
 
 set_source_files_properties(${shader_header_files} PROPERTIES HEADER_FILE_ONLY TRUE)
