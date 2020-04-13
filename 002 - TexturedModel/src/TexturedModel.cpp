@@ -62,7 +62,7 @@ void TexturedModel::Init() {
    
    m_Eye = {2.0f, 2.0f, 4.0f};
    m_Direction = glm::normalize(glm::vec3 {-2.0f, -2.0f, -4.0f});
-   m_Up = glm::normalize(glm::vec3 {0.0f, 0.0f, 1.0f});
+   m_Up = glm::normalize(glm::vec3 {0.0f, 1.0f, 0.0f});
 
    LoadModel();
    CreateVertexBuffer();
