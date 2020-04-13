@@ -152,10 +152,10 @@ void RayTracer::CreateScene() {
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    //CreateSceneRayTracingInOneWeekend();
-   //CreateSceneRayTracingTheNextWeekTexturesAndLight();
+   CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
-   CreateSceneCornellBoxWithEarth();
+   //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
 
@@ -216,7 +216,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
       glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
       1.0f                            /*radius*/,
       Dielectric(                     /*material*/
-         FlatColor(                      /*texture*/
+         FlatColor(                      /*transmittance*/
             {1.0f, 1.0f, 1.0f}
          ),
          1.5f                         /*refractive index*/
@@ -227,7 +227,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
       glm::vec3 {-4.0f, 2.00f, 0.0f}     /*centre*/,
       1.0f                              /*radius*/,
       Lambertian(                       /*material*/
-         FlatColor({0.4f, 0.2f, 0.1f})      /*texture*/
+         FlatColor({0.4f, 0.2f, 0.1f})     /*albedo*/
       )
    ));
 
@@ -235,7 +235,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
       glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
       1.0f                               /*radius*/,
       Metallic(                          /*material*/
-         FlatColor({0.7f, 0.6f, 0.5f})      /*texture*/,
+         FlatColor({0.7f, 0.6f, 0.5f})      /*albedo*/,
          0.01f                              /*roughness*/
       )
    ));
@@ -247,8 +247,11 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    m_Direction = {-2.0f, -0.5f, -0.5};
    m_Up = {0.0f, 1.0f, 0.0f};
 
-   m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
-   m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
+   //m_Scene.SetHorizonColor({0.005f, 0.0f, 0.05f});
+   //m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
+   m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
+   m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
+
 
    // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
    //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
@@ -322,25 +325,27 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
       1.0f                             /*radius*/,
-      Blended(                         /*material*/
-         FlatColor(                          /*texture*/
-            {0.0f, 1.0f, 1.0f}               /*color*/
+      Layered(                         /*material*/
+         FlatColor(                       /*texture*/
+            {0.4f, 0.2f, 0.1f}               /*albedo*/
          ),
-         0.04f                               /*blend*/,
+         Texture {m_Scene.GetTextureId("Earth")} /*diffuse*/,
          0.0f                                /*roughness*/
       )
    ));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {4.0f, 2.0f, 0.0f}   /*centre*/,
-      1.0f                           /*radius*/,
-      Metallic(                      /*material*/
-         Marble(                        /*texture*/
-            {0.7f, 0.6f, 0.5f}             /*color*/,
-            4.0f                           /*scale*/,
-            0.04f                          /*weight*/,
-            7                              /*depth*/
-         ),
-         0.01f                          /*roughness*/
+      glm::vec3 {4.0f, 2.0f, 0.0f}      /*centre*/,
+      1.0f                              /*radius*/,
+      Lambertian(                          /*material*/
+         FlatColor({0.2f, 0.2f, 0.7f})     /*albedo*/
+      )
+   ));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {4.0f, 2.0f, 0.0f}      /*centre*/,
+      1.001f                            /*radius*/,
+      Dielectric(                          /*material*/
+         FlatColor({1.0f, 1.0f, 1.0f})     /*transmittance*/,
+         1.5f
       )
    ));
 }
@@ -464,8 +469,8 @@ void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
    const glm::vec3 size = {555.0f, 555.0f, 555.0f};
    const glm::vec3 halfSize = size / 2.0f;
 
-   const Material smoke = Smoke(0.01f, FlatColor({0.0f, 0.0f, 0.0f}));
-   const Material fog = Smoke(0.01f, FlatColor({1.0f, 1.0f, 1.0f}));
+   const Material smoke = Smoke(FlatColor({0.0f, 0.0f, 0.0f}), 0.01f);
+   const Material fog = Smoke(FlatColor({1.0f, 1.0f, 1.0f}), 0.01f);
 
    CreateCornellBox(size);
 
@@ -484,9 +489,6 @@ void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
 void RayTracer::CreateSceneCornellBoxWithEarth() {
    const glm::vec3 size = {555.0f, 555.0f, 555.0f};
    const glm::vec3 halfSize = size / 2.0f;
-
-   const Material smoke = Smoke(0.01f, FlatColor({0.0f, 0.0f, 0.0f}));
-   const Material fog = Smoke(0.01f, FlatColor({1.0f, 1.0f, 1.0f}));
 
    CreateCornellBox(size);
 
@@ -528,7 +530,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
 
    // glass ball filled with blue smoke
    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-82.0f, -128.0f, -145.0f}, 70.0f, Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f)));
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-82.0f, -128.0f, -145.0f}, 69.99f, Smoke(0.2f, FlatColor({0.2f, 0.4f, 0.9f}))));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{-82.0f, -128.0f, -145.0f}, 69.99f, Smoke(FlatColor({0.2f, 0.4f, 0.9f}), 0.2f)));
 
    // polystyrene cube
    glm::mat4x4 transform = glm::rotate(glm::translate(glm::identity<glm::mat4x4>(), {213.0f, -8.0f, -560.0f}), glm::radians(15.0f), {0.0f, 1.0f, 0.0f});
@@ -552,10 +554,10 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
    //m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -278.0 - 132.5 - 1000.f}, glm::vec2{300.0f, 2000.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, black));
 
    // mist under ceiling
-   //m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{2000.0f, 554.0f, 2000.0f}, glm::vec3{}, Smoke(0.0001f, FlatColor({1.0f, 1.0f, 1.0f}))));
+   //m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{2000.0f, 554.0f, 2000.0f}, glm::vec3{}, Smoke(FlatColor({1.0f, 1.0f, 1.0f}), 0.0001f)));
 
    // mist covering whole scene
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, 2000.0f, Smoke(0.0001f, FlatColor({1.0f, 1.0f, 1.0f}))));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, 2000.0f, Smoke(FlatColor({1.0f, 1.0f, 1.0f}), 0.0001f)));
 
    // The light
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -279.5f}, glm::vec2{30.0f, 26.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));

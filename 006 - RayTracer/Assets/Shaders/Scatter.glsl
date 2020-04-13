@@ -34,11 +34,11 @@ float Turbulence(vec3 p, int depth) {
 }
 
 
-vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Material material) {
-   switch(material.textureId) {
+vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const int textureType, const vec4 textureParam1, const vec4 textureParam2) {
+   switch(textureType) {
       case TEXTURE_FLATCOLOR: {
          // flat color
-         return material.textureParam1.rgb;
+         return textureParam1.rgb;
       }
 
       case TEXTURE_CHECKERBOARD: {
@@ -47,9 +47,9 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
          //          (For example, a large cube where one of the faces is axis-aligned at z = 0)
          //          You will end up with floating point precision issues with sin(hitPoint.z) sometimes being slightly less than 0 and sometimes
          //          slightly > 0.
-         const vec3 oddColor = material.textureParam1.rgb;
-         const vec3 evenColor = material.textureParam2.rgb;
-         const float scale = material.textureParam1.w;
+         const vec3 oddColor = textureParam1.rgb;
+         const vec3 evenColor = textureParam2.rgb;
+         const float scale = textureParam1.w;
          float sineProduct = (sin(hitPoint.x * scale) >= 0.0? 1.0 : -1.0) * (sin(hitPoint.y * scale) >= 0.0? 1.0 : -1.0) * (sin(hitPoint.z * scale) >= 0.0? 1.0 : -1.0);
          if (sineProduct < 0) {
             return oddColor;
@@ -60,20 +60,20 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
 
       case TEXTURE_SIMPLEX3D: {
          vec3 p = hitPoint;
-         p *= material.textureParam2.w; // scale
-         return mix(material.textureParam1.rgb, vec3(snoise(p)), material.textureParam1.w);
+         p *= textureParam2.w; // scale
+         return mix(textureParam1.rgb, vec3(snoise(p)), textureParam1.w);
       }
 
       case TEXTURE_TURBULENCE: {
          vec3 p = hitPoint;
-         p *= material.textureParam2.w; // scale
-         return mix(material.textureParam1.rgb, vec3(Turbulence(p, int(material.textureParam2.z))), material.textureParam1.w);   
+         p *= textureParam2.w; // scale
+         return mix(textureParam1.rgb, vec3(Turbulence(p, int(textureParam2.z))), textureParam1.w);   
       }
 
       case TEXTURE_MARBLE: {
          vec3 p = hitPoint;
-         p *= material.textureParam2.w; // scale
-         return mix(material.textureParam1.rgb, vec3(sin(p.z + 10.0 * Turbulence(p, int(material.textureParam2.z)))), material.textureParam1.w);
+         p *= textureParam2.w; // scale
+         return mix(textureParam1.rgb, vec3(sin(p.z + 10.0 * Turbulence(p, int(textureParam2.z)))), textureParam1.w);
       }
 
       case TEXTURE_NORMALS: {
@@ -89,8 +89,8 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const Ma
       }
 
       default: {
-         // sample from textures, indexed by textureId
-         return texture(samplers[material.textureId], texCoord).rgb;
+         // sample from textures, indexed by textureType
+         return texture(samplers[textureType], texCoord).rgb;
       }
    }
 }
@@ -114,16 +114,18 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
    switch(material.type) {
 
       case MATERIAL_LAMBERTIAN: {
-         return ScatterLambertian(hitPoint, normal, Color(hitPoint, normal, texCoord, material), randomSeed);
+         return ScatterLambertian(hitPoint, normal, Color(hitPoint, normal, texCoord, material.albedoTextureType, material.albedoTextureParam1, material.albedoTextureParam2), randomSeed);
       }
 
-      case MATERIAL_BLENDED: {
-         const vec3 color = Color(hitPoint, normal, texCoord, material);
-         const vec3 colorSpecular = color * material.materialParameter2;
-         const vec3 colorDiffuse = color * (1.0 - material.materialParameter2);
+      case MATERIAL_LAYERED: {
+         const vec3 albedo = Color(hitPoint, normal, texCoord, material.albedoTextureType, material.albedoTextureParam1, material.albedoTextureParam2);
+         const vec3 diffuse = Color(hitPoint, normal, texCoord, material.diffuseTextureType, material.diffuseTextureParam1, material.diffuseTextureParam2);
 
-         float specularChance = dot(colorSpecular, vec3(1.0/3.0));
+         const vec3 colorDiffuse = albedo * diffuse;
+         const vec3 colorSpecular = albedo * (1.0 - diffuse);
+
          float diffuseChance = dot(colorDiffuse, vec3(1.0/3.0));
+         float specularChance = dot(colorSpecular, vec3(1.0/3.0));
          float sum = specularChance + diffuseChance;
          if(sum > 0.0001) {
             diffuseChance /= sum;
@@ -142,13 +144,13 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
       }
 
       case MATERIAL_METALLIC: {
-         return ScatterMetallic(hitPoint, normal, Color(hitPoint, normal, texCoord, material), material.materialParameter1, randomSeed);
+         return ScatterMetallic(hitPoint, normal, Color(hitPoint, normal, texCoord, material.albedoTextureType, material.albedoTextureParam1, material.albedoTextureParam2), material.materialParameter1, randomSeed);
       }
 
       case MATERIAL_DIELECTRIC: {
          vec3 outward_normal;
          float ni_over_nt;
-         float reflect_prob;
+         float reflectProbability;
          float cosine;
          if (dot(gl_WorldRayDirectionNV, normal) > 0.0) {
             outward_normal = -normal;
@@ -163,14 +165,14 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
 
          // fake colored glass.. I dont think it really behaves like this (e.g. shouldn't attenuation be proportional to how much
          // of the material the ray passes through)?
-         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
+         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material.albedoTextureType, material.albedoTextureParam1, material.albedoTextureParam2), gl_HitTNV);
 
          if(dot(refracted, refracted) > 0.0) {
-            reflect_prob = Schlick(cosine, material.materialParameter1);
+            reflectProbability = Schlick(cosine, material.materialParameter1);
          } else {
-            reflect_prob = 1.0;
+            reflectProbability = 1.0;
          }
-         if(RandomFloat(randomSeed) < reflect_prob) {
+         if(RandomFloat(randomSeed) < reflectProbability) {
             const vec3 reflected = reflect(gl_WorldRayDirectionNV, normal);
             return RayPayload(attenuationAndDistance, vec4(0.0), vec4(reflected, 1), randomSeed);
          }
@@ -187,7 +189,7 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
       }
 
       case MATERIAL_SMOKE: {
-         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material), gl_HitTNV);
+         const vec4 attenuationAndDistance = vec4(Color(hitPoint, normal, texCoord, material.albedoTextureType, material.albedoTextureParam1, material.albedoTextureParam2), gl_HitTNV);
          const vec3 scatterDirection = RandomUnitVector(randomSeed);
          return RayPayload(attenuationAndDistance, vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
       }

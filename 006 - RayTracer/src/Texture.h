@@ -6,7 +6,7 @@ using vec3 = glm::vec3;
 #include "Texture.glsl"
 
 struct Texture {
-   int id;
+   int type;
    glm::vec4 param1;
    glm::vec4 param2;
 };
