@@ -125,14 +125,19 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
          float specularChance = dot(colorSpecular, vec3(1.0/3.0));
          float diffuseChance = dot(colorDiffuse, vec3(1.0/3.0));
          float sum = specularChance + diffuseChance;
-         specularChance /= sum;
-         diffuseChance /= sum;
+         if(sum > 0.0001) {
+            diffuseChance /= sum;
+            specularChance /= sum;
+         } else {
+            diffuseChance = 1.0f;
+            specularChance = 0.0f;
+         }
 
          const float select = RandomFloat(randomSeed);
          if (select < specularChance) {
-             return ScatterMetallic(hitPoint, normal, colorSpecular / specularChance, material.materialParameter1, randomSeed);
+             return ScatterMetallic(hitPoint, normal, colorSpecular, material.materialParameter1, randomSeed);
          } else {
-            return ScatterLambertian(hitPoint, normal, colorDiffuse / diffuseChance, randomSeed);
+            return ScatterLambertian(hitPoint, normal, colorDiffuse, randomSeed);
          }
       }
 
@@ -148,11 +153,11 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
          if (dot(gl_WorldRayDirectionNV, normal) > 0.0) {
             outward_normal = -normal;
             ni_over_nt = material.materialParameter1;
-            cosine = ni_over_nt * dot(gl_WorldRayDirectionNV, normal) / length(gl_WorldRayDirectionNV);
+            cosine = ni_over_nt * dot(gl_WorldRayDirectionNV, normal);
          } else {
             outward_normal = normal;
             ni_over_nt = 1.0 / material.materialParameter1;
-            cosine = -dot(gl_WorldRayDirectionNV, normal) / length(gl_WorldRayDirectionNV);
+            cosine = -dot(gl_WorldRayDirectionNV, normal);
          }
          const vec3 refracted = refract(gl_WorldRayDirectionNV.xyz, outward_normal, ni_over_nt);
 
@@ -173,8 +178,11 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
       } 
 
       case MATERIAL_LIGHT: {
-         const float emit = pow(max(0.0, -dot(gl_WorldRayDirectionNV, normal)), material.materialParameter1);
-         const vec3 color = Color(hitPoint, normal, texCoord, material);
+         float emit = 1.0;
+         if(material.materialParameter1 > 0.0) {
+            emit = pow(max(0.0, -dot(gl_WorldRayDirectionNV, normal)), material.materialParameter1);
+         }
+         const vec3 color = Color(hitPoint, normal, texCoord, material.albedoTextureType, material.albedoTextureParam1, material.albedoTextureParam2);
          return RayPayload(vec4(0.0, 0.0, 0.0, gl_HitTNV), emit * vec4(color, 0.0), vec4(0.0), randomSeed);
       }
 
