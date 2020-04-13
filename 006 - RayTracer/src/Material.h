@@ -35,10 +35,15 @@ Material Dielectric(const Texture& texture, const float refractiveIndex) {
 }
 
 
+// focus controls how focused the beam of light is.
+// 0  = diffuse
+// 1  = diffuse in hemisphere of normal
+// >1 = increasingly focused in direction of normal
 inline
-Material DiffuseLight(const Texture& texture) {
-   return Material{MATERIAL_DIFFUSELIGHT, 0.0f, 0.0f, texture.id, texture.param1, texture.param2};
+Material Light(const Texture& texture, const float focus) {
+   return Material{MATERIAL_LIGHT, focus, 0.0f, texture.id, texture.param1, texture.param2};
 }
+
 
 // Smoke material requires custom intersection shader
 // and so can only work with models where IsProcedural() returns true.

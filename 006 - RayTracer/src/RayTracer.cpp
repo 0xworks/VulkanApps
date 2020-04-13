@@ -127,10 +127,10 @@ void RayTracer::CreateScene() {
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    //CreateSceneRayTracingInOneWeekend();
-   CreateSceneRayTracingTheNextWeekTexturesAndLight();
+   //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
-   //CreateSceneRayTracingTheNextWeekFinal();
+   CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
 
 }
@@ -280,7 +280,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
                   0.5f * RandomFloat()
                );
             } else {
-               material = DiffuseLight(FlatColor({10.0f, 10.0f, 10.0f}));
+               material = Light(FlatColor({10.0f, 10.0f, 10.0f}), 0.0f);
             }
             m_Scene.AddInstance(std::make_unique<SphereInstance>(centre, 0.2f, material));
          }
@@ -291,7 +291,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {0.0f, 2.0f, 0.0f}                /*centre*/,
       1.0f                                        /*radius*/,
-      DiffuseLight(FlatColor({20.0f, 20.0f, 20.0f})) /*material*/
+      Light(FlatColor({20.0f, 20.0f, 20.0f}), 0.0f) /*material*/
    ));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
@@ -331,16 +331,18 @@ void RayTracer::CreateSceneBoxRotationTest() {
    m_Scene.AddInstance(std::make_unique<BoxInstance>(
       glm::vec3{0.0f, 0.0f, 0.0f}                                              /*centre*/,
       glm::vec3{1.0f}                                                          /*size*/,
-      glm::vec3{glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
-      DiffuseLight(                                                            /*material*/
-         Normals()                                                                /*texture*/
+      glm::vec3{glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f)}    /*rotation*/,
+      Light(                                                                   /*material*/
+         Normals()                                                                /*texture*/,
+         0.0f                                                                     /*focus*/
       )
    ));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {0.0f, 0.0f, 2.0f}                          /*centre*/,
       1.0f                                                  /*radius*/,
-      DiffuseLight(                                         /*material*/
-         Normals()                                             /*texture*/
+      Light(                                                /*material*/
+         Normals()                                             /*texture*/,
+         0.0f                                                  /*focus*/
       )
    ));
 }
@@ -356,7 +358,7 @@ void RayTracer::CreateCornellBox(glm::vec3 size) {
    Material red = Lambertian(FlatColor({0.65f, 0.05f, 0.05f}));
    Material green = Lambertian(FlatColor({0.12f, 0.45f, 0.15f}));
    Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
-   Material light = DiffuseLight(FlatColor({15.0f, 15.0f, 15.0f}));
+   Material light = Light(FlatColor({15.0f, 15.0f, 15.0f}), 1.0f);
 
    glm::vec3 halfSize = size / 2.0f;
    glm::vec2 lightSize = {130.0f, 105.0f};
@@ -461,7 +463,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
    m_Direction = {50.0f, 1.0f, -140.0f};
 
    Material green = Lambertian(FlatColor({0.48f, 0.83f, 0.53f}));
-   Material light = DiffuseLight(FlatColor({7.0f, 7.0f, 7.0f}));
+   Material light = Light(FlatColor({7000.0f, 7000.0f, 7000.0f}), 27.0f);
    Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
    Material black = Lambertian(FlatColor({0.0f, 0.0f, 0.0f}));
 
@@ -513,7 +515,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3{0.0f, 0.0f, 0.0f}, 2000.0f, Smoke(0.0001f, FlatColor({1.0f, 1.0f, 1.0f}))));
 
    // The light
-   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -279.5f}, glm::vec2{300.0f, 265.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -279.5f}, glm::vec2{30.0f, 26.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));
 }
 
 

@@ -6,7 +6,7 @@
 #define MATERIAL_BLENDED      1
 #define MATERIAL_METALLIC     2
 #define MATERIAL_DIELECTRIC   3
-#define MATERIAL_DIFFUSELIGHT 4
+#define MATERIAL_LIGHT 4
 #define MATERIAL_SMOKE        5
 
 // Be careful with alignment...

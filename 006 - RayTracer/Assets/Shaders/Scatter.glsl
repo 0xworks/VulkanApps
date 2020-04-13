@@ -170,8 +170,10 @@ RayPayload Scatter(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, 
          return RayPayload(attenuationAndDistance, vec4(0.0), vec4(refracted, 1), randomSeed);
       } 
 
-      case MATERIAL_DIFFUSELIGHT: {
-         return RayPayload(vec4(0.0, 0.0, 0.0, gl_HitTNV), vec4(Color(hitPoint, normal, texCoord, material), 0.0), vec4(0.0), randomSeed);
+      case MATERIAL_LIGHT: {
+         const float emit = pow(max(0.0, -dot(gl_WorldRayDirectionNV, normal)), material.materialParameter1);
+         const vec3 color = Color(hitPoint, normal, texCoord, material);
+         return RayPayload(vec4(0.0, 0.0, 0.0, gl_HitTNV), emit * vec4(color, 0.0), vec4(0.0), randomSeed);
       }
 
       case MATERIAL_SMOKE: {
