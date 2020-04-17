@@ -60,3 +60,25 @@ vec3 RandomUnitVector(inout uint seed) {
    const float r = sqrt(1.0 - z * z);
    return vec3(r * cos(a), r * sin(a), z);
 }
+
+
+mat3x3 GetOrthoNormalBasis(const vec3 normal) {
+   vec3 helper = vec3(1.0, 0.0, 0.0);
+   if (abs(normal.x) > 0.99f) {
+      helper = vec3(0.0, 0.0, 1.0);
+   }
+   vec3 tangent = normalize(cross(normal, helper));
+   vec3 binormal = normalize(cross(normal, tangent));
+   return mat3x3(tangent, binormal, normal);
+}
+
+
+// alpha = 0 -> uniform sampling
+// alpha = 1 -> cosine sampling
+// alpha > 1 -> phong sampling
+vec3 RandomOnUnitHemisphere(const vec3 normal, const float alpha, inout uint seed) {
+   const float cosTheta = pow(RandomFloat(0.0, 1.0, seed), 1.0 / (alpha + 1.0));
+   const float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+   const float phi = RandomFloat(0.0, 2.0 * 3.1415926535897932384626433832795, seed);
+   return GetOrthoNormalBasis(normal) * vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+}

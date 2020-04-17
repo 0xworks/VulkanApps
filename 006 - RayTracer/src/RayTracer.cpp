@@ -151,14 +151,88 @@ void RayTracer::CreateScene() {
    ProceduralBoxInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Box>(true)));
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
+   //CreateSceneFurnaceTest();
+   CreateSceneSimple();
    //CreateSceneRayTracingInOneWeekend();
-   CreateSceneRayTracingTheNextWeekTexturesAndLight();
+   //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneBoxRotationTest();
 
+}
+
+
+void RayTracer::CreateSceneFurnaceTest() {
+   m_Eye = {8.0f, 2.0f, 2.0f};
+   m_Direction = {-2.0f, -0.25f, -0.25};
+   m_Up = {0.0f, 1.0f, 0.0f};
+
+   m_Scene.SetHorizonColor({1.0f, 1.0f, 1.0f});
+   m_Scene.SetZenithColor({1.0f, 1.0f, 1.0f});
+
+   Material grey = Lambertian(FlatColor({0.5f, 0.5f, 0.5f}));
+   Material chrome = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0f);
+
+   enum class Test {
+      lambertian,
+      metal
+   };
+
+   Test test = Test::metal;
+
+   switch (test) {
+      case Test::lambertian:
+         // If lambertian material is working properly, then the rendered result
+         // should be a uniform grey filled circle
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, 2.0f}, 1.0f, grey));
+         break;
+
+      case Test::metal:
+         // If metallic material is working properly, then the rendered result
+         // should be a uniform grey filled circle.
+         // Because:  metal material is a perfect reflector (real metals aren't),
+         // and metal tints reflected light with its color (not so "glossy" non-metals)
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, -2.0f}, 1.0f, chrome));
+         break;
+   }
+
+}
+
+
+void RayTracer::CreateSceneSimple() {
+   m_Eye = {8.0f, 2.0f, 2.0f};
+   m_Direction = {-2.0f, -0.25f, -0.5};
+   m_Up = {0.0f, 1.0f, 0.0f};
+
+   m_Scene.SetHorizonColor({0.2f, 0.2f, 0.2f});
+   m_Scene.SetZenithColor({0.02f, 0.02f, 0.02f});
+
+   Material blue = Lambertian(FlatColor({0.2f, 0.2f, 1.0f}));
+   Material white = Lambertian(FlatColor({1.0f, 1.0f, 1.0f}));
+   Material hardPlastic = Phong(FlatColor({0.2f, 0.2f, 1.0f}), 0.1f, 0.1f);
+   Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
+   Material light = Light(FlatColor({170.0f, 170.0f, 170.0f}), 0.0);
+
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
+      glm::vec3{0.0f, 0.0f, 0.0f},
+      glm::vec2{1000.0f, 1000.0f},
+      glm::vec3{glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)},
+      blue
+   ));
+
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {0.0f, 1.0f, 0.0f}   /*centre*/,
+      1.0f                            /*radius*/,
+      hardPlastic
+   ));
+
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3(0.0f, 20.0f, 20.0f),
+      1.0f,
+      light
+   ));
 }
 
 
@@ -227,7 +301,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
       glm::vec3 {-4.0f, 2.00f, 0.0f}     /*centre*/,
       1.0f                              /*radius*/,
       Lambertian(                       /*material*/
-         FlatColor({0.4f, 0.2f, 0.1f})     /*albedo*/
+         FlatColor({0.4f, 0.2f, 0.1f})     /*diffuse*/
       )
    ));
 
@@ -235,7 +309,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
       glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
       1.0f                               /*radius*/,
       Metallic(                          /*material*/
-         FlatColor({0.7f, 0.6f, 0.5f})      /*albedo*/,
+         FlatColor({0.7f, 0.6f, 0.5f})      /*specular*/,
          0.01f                              /*roughness*/
       )
    ));
@@ -325,11 +399,10 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3 {-4.0f, 2.0f, 0.0f}    /*centre*/,
       1.0f                             /*radius*/,
-      Layered(                         /*material*/
+      Metallic(                           /*material*/
          FlatColor(                       /*texture*/
-            {0.4f, 0.2f, 0.1f}               /*albedo*/
+            {0.4f, 0.2f, 0.1f}               /*specular*/
          ),
-         Texture {m_Scene.GetTextureId("Earth")} /*diffuse*/,
          0.0f                                /*roughness*/
       )
    ));
@@ -337,7 +410,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
       glm::vec3 {4.0f, 2.0f, 0.0f}      /*centre*/,
       1.0f                              /*radius*/,
       Lambertian(                          /*material*/
-         FlatColor({0.2f, 0.2f, 0.7f})     /*albedo*/
+         FlatColor({0.2f, 0.2f, 0.7f})     /*diffuse*/
       )
    ));
    m_Scene.AddInstance(std::make_unique<SphereInstance>(

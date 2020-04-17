@@ -12,7 +12,7 @@ using uint = uint32_t;
 #include <algorithm>
 
 inline
-Material Lambertian(const Texture& albedo) {
+Material Lambertian(const Texture& diffuse) {
    return Material {
       MATERIAL_LAMBERTIAN,
       0.0f,
@@ -21,11 +21,11 @@ Material Lambertian(const Texture& albedo) {
 
       0,
       0,
-      albedo.type,
+      diffuse.type,
       0,
 
-      albedo.param1,
-      albedo.param2,
+      diffuse.param1,
+      diffuse.param2,
       {},
       {}
    };
@@ -33,28 +33,28 @@ Material Lambertian(const Texture& albedo) {
 
 
 inline
-Material Layered(const Texture& albedo, const Texture& diffuse, const float roughness) {
+Material Phong(const Texture& diffuse, const float specular, const float roughness) {
    return Material {
-      MATERIAL_LAYERED,
-      std::clamp(roughness, 0.0f, 0.99f),
+      MATERIAL_PHONG,
+      std::clamp(1.0f - roughness, 0.0f, 1.0f),
       0.0f,
       0.0f,
 
       0,
       0,
-      albedo.type,
       diffuse.type,
+      TEXTURE_FLATCOLOR,
 
-      albedo.param1,
-      albedo.param2,
       diffuse.param1,
-      diffuse.param2
+      diffuse.param2,
+      {std::clamp(specular, 0.0f, 1.0f), std::clamp(specular, 0.0f, 1.0f), std::clamp(specular, 0.0f, 1.0f), std::clamp(specular, 0.0f, 1.0f)} /* non-metallic specular component should always be "white" */,
+      {}
    };
 }
 
 
 inline
-Material Metallic(const Texture& albedo, const float roughness) {
+Material Metallic(const Texture& specular, const float roughness) {
    return Material{
       MATERIAL_METALLIC,
       std::clamp(roughness, 0.0f, 0.99f),
@@ -63,13 +63,13 @@ Material Metallic(const Texture& albedo, const float roughness) {
 
       0,
       0,
-      albedo.type,
       0,
+      specular.type,
 
-      albedo.param1,
-      albedo.param2,
       {},
-      {}
+      {},
+      specular.param1,
+      specular.param2
    };
 }
 

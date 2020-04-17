@@ -73,6 +73,8 @@ public:
    virtual void OnWindowResized() override;
 
 private:
+   void CreateSceneFurnaceTest();
+   void CreateSceneSimple();
    void CreateSceneRayTracingInOneWeekend();
    void CreateSceneRayTracingTheNextWeekTexturesAndLight();
    void CreateSceneBoxRotationTest();
