@@ -28,11 +28,6 @@ The dependencies are:
  * vulkan   (vcpkg install vulkan)
 
 ## Screenshots
-![001 - Triangle](/Screenshots/001%20-%20Triangle.png?raw=true "001 - Triangle")
-![002 - TexturedModel](/Screenshots/002%20-%20TexturedModel.png?raw=true "002 - TexturedModel")
-![003 - Instancing](/Screenshots/003%20-%20Instancing.png?raw=true "003 - Instancing")
-
-![001 - Triangle](/Screenshots/001%20-%20Triangle.png?raw=true "001 - Triangle")
-
-<img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/Balls.png" width="49%"></img> <img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/RayTracingTheNextWeekFinal.png" width="49%">
-</img> <img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/WineGlass.png"/>
+<img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/Balls.png" width="49%" /><img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/RayTracingTheNextWeekFinal.png" width="49%" />
+<img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/WineGlass.png" />
+<img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/001%20-%20Triangle.png" width="49%" /><img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/002%20-%20TexturedModel.png" width="49%" />
