@@ -67,6 +67,7 @@ set(
    "Assets/Models/Box.obj"
    "Assets/Models/Rectangle2D.obj"
    "Assets/Models/Sphere.obj"
+   "Assets/Models/WineGlass.obj"
 )
 
 set(

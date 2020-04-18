@@ -152,14 +152,15 @@ void RayTracer::CreateScene() {
    Rectangle2DInstance::SetModelIndex(m_Scene.AddModel(std::make_unique<Rectangle2D>()));
 
    //CreateSceneFurnaceTest();
-   CreateSceneSimple();
+   //CreateSceneNormalsTest();
+   //CreateSceneSimple();
    //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
-   //CreateSceneBoxRotationTest();
+   CreateSceneWineGlass();
 
 }
 
@@ -173,7 +174,7 @@ void RayTracer::CreateSceneFurnaceTest() {
    m_Scene.SetZenithColor({1.0f, 1.0f, 1.0f});
 
    Material grey = Lambertian(FlatColor({0.5f, 0.5f, 0.5f}));
-   Material chrome = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0f);
+   Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
 
    enum class Test {
       lambertian,
@@ -194,10 +195,45 @@ void RayTracer::CreateSceneFurnaceTest() {
          // should be a uniform grey filled circle.
          // Because:  metal material is a perfect reflector (real metals aren't),
          // and metal tints reflected light with its color (not so "glossy" non-metals)
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, -2.0f}, 1.0f, chrome));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, -2.0f}, 1.0f, chromium));
          break;
    }
 
+}
+
+
+void RayTracer::CreateSceneNormalsTest() {
+   m_Eye = {0.0f, 0.0f, 6.0f};
+   m_Direction = {0.0f, 0.0f, -1.0};
+   m_Up = {0.0f, 1.0f, 0.0f};
+
+   uint wineGlass = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/WineGlass.obj"));
+
+   Material normals = Lambertian(Normals());
+
+   // Objects shaded according to their normals.
+   // Faces should be coloured consistently with the sphere.
+   // (i.e. a face should be coloured the same as the point on the sphere that faces in same direction)
+
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {0.0f, 0.0f, 0.0f},
+      1.0f,
+      normals
+   ));
+
+
+   m_Scene.AddInstance(std::make_unique<BoxInstance>(
+      glm::vec3 {2.0f, 0.0f, 0.0f},
+      glm::vec3 {1.0f},
+      glm::vec3 {glm::radians(20.0f), glm::radians(45.0f), glm::radians(0.0f)},
+      normals
+   ));
+ 
+
+   glm::vec3 glassCentre = {-2.0f, 0.0f, 0.0f};
+   glm::vec3 glassSize = {1.0f, 1.0f, 1.0f};
+   glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
+   m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, normals));
 }
 
 
@@ -424,35 +460,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
 }
 
 
-void RayTracer::CreateSceneBoxRotationTest() {
-   m_Eye = {8.0f, 3.0f, 2.0f};
-   m_Direction = {-2.0f, -0.5f, -0.5};
-   m_Up = {0.0f, 1.0f, 0.0f};
-
-   // A sphere and a box, shaded according to their normals.
-   // Note that box faces should be shaded consistently with the sphere.
-   // (e.g. box facing forward should be shaded same color as the point on the sphere that faces forward)
-   m_Scene.AddInstance(std::make_unique<BoxInstance>(
-      glm::vec3{0.0f, 0.0f, 0.0f}                                              /*centre*/,
-      glm::vec3{1.0f}                                                          /*size*/,
-      glm::vec3{glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f)}    /*rotation*/,
-      Light(                                                                   /*material*/
-         Normals()                                                                /*texture*/,
-         0.0f                                                                     /*focus*/
-      )
-   ));
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {0.0f, 0.0f, 2.0f}                          /*centre*/,
-      1.0f                                                  /*radius*/,
-      Light(                                                /*material*/
-         Normals()                                             /*texture*/,
-         0.0f                                                  /*focus*/
-      )
-   ));
-}
-
-
-void RayTracer::CreateCornellBox(glm::vec3 size) {
+void RayTracer::CreateCornellBox(const glm::vec3 size, const float brightness) {
    m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
    m_Scene.SetZenithColor({0.f, 0.0f, 0.0f});
 
@@ -462,7 +470,7 @@ void RayTracer::CreateCornellBox(glm::vec3 size) {
    const Material red = Lambertian(FlatColor({0.65f, 0.05f, 0.05f}));
    const Material green = Lambertian(FlatColor({0.12f, 0.45f, 0.15f}));
    const Material white = Lambertian(FlatColor({0.73f, 0.73f, 0.73f}));
-   const Material light = Light(FlatColor({15.0f, 15.0f, 15.0f}), 1.0f);
+   const Material light = Light(FlatColor({brightness, brightness, brightness}), 1.0f);
 
    const glm::vec3 halfSize = size / 2.0f;
    const glm::vec2 lightSize = {130.0f, 105.0f};
@@ -523,7 +531,7 @@ void RayTracer::CreateSceneCornellBoxWithBoxes() {
 
    const Material white = Lambertian(FlatColor({0.73, 0.73, 0.73}));
 
-   CreateCornellBox(size);
+   CreateCornellBox(size, 15.0f);
 
    const glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
    const glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, -(size.y - box1Size.y) * 0.5f, -halfSize.z * 1.25};
@@ -545,7 +553,7 @@ void RayTracer::CreateSceneCornellBoxWithSmokeBoxes() {
    const Material smoke = Smoke(FlatColor({0.0f, 0.0f, 0.0f}), 0.01f);
    const Material fog = Smoke(FlatColor({1.0f, 1.0f, 1.0f}), 0.01f);
 
-   CreateCornellBox(size);
+   CreateCornellBox(size, 15.0f);
 
    const glm::vec3 box1Size = {165.0f, 330.0f, 165.0f};
    const glm::vec3 box1Centre = glm::vec3 {-halfSize.x * 0.30f, (-(size.y - box1Size.y) * 0.5f), -halfSize.z * 1.25};
@@ -563,7 +571,7 @@ void RayTracer::CreateSceneCornellBoxWithEarth() {
    const glm::vec3 size = {555.0f, 555.0f, 555.0f};
    const glm::vec3 halfSize = size / 2.0f;
 
-   CreateCornellBox(size);
+   CreateCornellBox(size, 15.0f);
 
    const float earthSize = 165.0f;
    const glm::vec3 earthCentre = glm::vec3 {+halfSize.x * 0.35f, (-(size.y - earthSize) * 0.5f), -halfSize.z * 0.65};
@@ -634,6 +642,34 @@ void RayTracer::CreateSceneRayTracingTheNextWeekFinal() {
 
    // The light
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3{5.0f, 276.0f, -279.5f}, glm::vec2{30.0f, 26.0f}, glm::vec3{glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));
+}
+
+
+void RayTracer::CreateSceneWineGlass() {
+
+   const glm::vec3 size = {555.0f, 555.0f, 555.0f};
+
+   m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
+   m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
+
+   uint wineGlass = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/WineGlass.obj"));
+
+   CreateCornellBox(size, 50.0f);
+
+   Material glass = Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f);
+   Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
+
+   const glm::vec2 rectSize = {165.0f, 330.0f};
+   const glm::vec3 rectCentre = glm::vec3 {-120.0f, -(size.y - rectSize.y) * 0.5f, -250.0f};
+   const glm::vec3 rectRotation = {glm::radians(0.0f), glm::radians(-39.5f), glm::radians(0.0f)};
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(rectCentre, rectSize, rectRotation, chromium));
+
+   glm::vec3 glassCentre = {130.0f, -278.0f, -170.0f};
+   glm::vec3 glassSize = {200.0f, 200.0f, 200.0f};
+
+   glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
+   m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, glass));
+
 }
 
 
@@ -1524,7 +1560,7 @@ void RayTracer::RecordCommandBuffers() {
    //       (without re-recording the entire command buffer)
    //       Could just shove them into the uniform buffer object instead.
    Constants constants = {
-      8                           /*max ray bounces*/,
+      32                           /*max ray bounces*/,
       0.0                         /*lens aperture            DISABLED IN RAYGEN SHADER*/,
       800.0                       /*lens focal length        DISABLED IN RAYGEN SHADER*/
    };

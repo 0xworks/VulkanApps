@@ -74,15 +74,16 @@ public:
 
 private:
    void CreateSceneFurnaceTest();
+   void CreateSceneNormalsTest();
    void CreateSceneSimple();
    void CreateSceneRayTracingInOneWeekend();
    void CreateSceneRayTracingTheNextWeekTexturesAndLight();
-   void CreateSceneBoxRotationTest();
-   void CreateCornellBox(const glm::vec3 size);
+   void CreateCornellBox(const glm::vec3 size, const float brightness);
    void CreateSceneCornellBoxWithBoxes();
    void CreateSceneCornellBoxWithSmokeBoxes();
    void CreateSceneCornellBoxWithEarth();
    void CreateSceneRayTracingTheNextWeekFinal();
+   void CreateSceneWineGlass();
 
 
 private:

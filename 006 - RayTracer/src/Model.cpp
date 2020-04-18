@@ -31,17 +31,21 @@ Model::Model(const char* filename, const uint32_t shaderHitGroupIndex)
                attrib.vertices[3 * index.vertex_index + 0],
                attrib.vertices[3 * index.vertex_index + 1],
                attrib.vertices[3 * index.vertex_index + 2],
-            } /*Pos*/,
-            {
+            } /*Pos*/
+         };
+         if (index.normal_index >= 0) {
+            vertex.normal = {
                attrib.normals[3 * index.normal_index + 0],
                attrib.normals[3 * index.normal_index + 1],
                attrib.normals[3 * index.normal_index + 2],
-            } /*Normal*/,
-            {
+            };
+         }
+         if(index.texcoord_index >= 0) {
+            vertex.uv = {
                attrib.texcoords[2 * index.texcoord_index + 0],
                attrib.texcoords[2 * index.texcoord_index + 1],
-            } /*uv*/
-         };
+            };
+         }
 
          if (uniqueVertices.count(vertex) == 0) {
             uniqueVertices[vertex] = static_cast<uint32_t>(m_Vertices.size());
