@@ -153,14 +153,14 @@ void RayTracer::CreateScene() {
 
    //CreateSceneFurnaceTest();
    //CreateSceneNormalsTest();
-   //CreateSceneSimple();
+   CreateSceneSimple();
    //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
-   CreateSceneWineGlass();
+   //CreateSceneWineGlass();
 
 }
 
@@ -242,27 +242,30 @@ void RayTracer::CreateSceneSimple() {
    m_Direction = {-2.0f, -0.25f, -0.5};
    m_Up = {0.0f, 1.0f, 0.0f};
 
-   m_Scene.SetHorizonColor({0.2f, 0.2f, 0.2f});
-   m_Scene.SetZenithColor({0.02f, 0.02f, 0.02f});
+   m_Scene.SetHorizonColor(glm::vec3{0.75f, 0.85f, 1.0f} * 0.8f);
+   m_Scene.SetZenithColor(glm::vec3{0.5f, 0.7f, 1.0f} * 0.8f);
 
-   Material blue = Lambertian(FlatColor({0.2f, 0.2f, 1.0f}));
+   uint wineGlass = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/WineGlass.obj"));
+
+   Material checker = Lambertian(CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f));
    Material white = Lambertian(FlatColor({1.0f, 1.0f, 1.0f}));
    Material hardPlastic = Phong(FlatColor({0.2f, 0.2f, 1.0f}), 0.1f, 0.1f);
    Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
-   Material light = Light(FlatColor({170.0f, 170.0f, 170.0f}), 0.0);
+   Material glass = Dielectric(FlatColor({1.0f,1.0f, 1.0f}), 1.5f);
+   Material light = Light(FlatColor({1000.0f, 1000.0f, 1000.0f}), 0.0);
 
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-      glm::vec3{0.0f, 0.0f, 0.0f},
+      glm::vec3{0.0f, 1.0f, 0.0f},
       glm::vec2{1000.0f, 1000.0f},
       glm::vec3{glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)},
-      blue
+      checker
    ));
 
-   m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {0.0f, 1.0f, 0.0f}   /*centre*/,
-      1.0f                            /*radius*/,
-      hardPlastic
-   ));
+   glm::vec3 glassCentre = {0.0f, 1.0f, 0.0f};
+   glm::vec3 glassSize = {1.0f, 1.0f, 1.0f};
+
+   glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
+   m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, glass));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3(0.0f, 20.0f, 20.0f),
@@ -280,10 +283,8 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    m_Scene.SetHorizonColor({0.75f, 0.85f, 1.0f});
    m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
 
-   // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
-   //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-      glm::vec3 {0.0f, 1.0f, 0.0f}                                         /*origin*/,
+      glm::vec3 {0.0f, 0.0f, 0.0f}                                         /*origin*/,
       glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
       glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
       Lambertian(                                                               /*material*/
@@ -297,9 +298,9 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
          float chooseMaterial = RandomFloat();
          vec3 centre(a + 0.9f * RandomFloat(), 1.2f, b + 0.9f * RandomFloat());
          if (
-            (glm::length(centre - glm::vec3 {-4.0f, 1.2f, 0.0f}) > 0.9f) &&
-            (glm::length(centre - glm::vec3 {0.0f, 1.2f, 0.0f}) > 0.9f) &&
-            (glm::length(centre - glm::vec3 {4.0f, 1.2f, 0.0f}) > 0.9f)
+            (glm::length(centre - glm::vec3 {-4.0f, 0.2f, 0.0f}) > 0.9f) &&
+            (glm::length(centre - glm::vec3 {0.0f, 0.2f, 0.0f}) > 0.9f) &&
+            (glm::length(centre - glm::vec3 {4.0f, 0.2f, 0.0f}) > 0.9f)
          ) {
             Material material;
             if (chooseMaterial < 0.8) {
@@ -323,7 +324,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
 
    // the three main spheres...
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {0.0f, 2.01f, 0.0f}   /*centre*/,
+      glm::vec3 {0.0f, 1.0f, 0.0f}    /*centre*/,
       1.0f                            /*radius*/,
       Dielectric(                     /*material*/
          FlatColor(                      /*transmittance*/
@@ -334,7 +335,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {-4.0f, 2.00f, 0.0f}     /*centre*/,
+      glm::vec3 {-4.0f, 1.00f, 0.0f}     /*centre*/,
       1.0f                              /*radius*/,
       Lambertian(                       /*material*/
          FlatColor({0.4f, 0.2f, 0.1f})     /*diffuse*/
@@ -342,7 +343,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {4.0f, 2.0f, 0.0f}       /*centre*/,
+      glm::vec3 {4.0f, 1.0f, 0.0f}       /*centre*/,
       1.0f                               /*radius*/,
       Metallic(                          /*material*/
          FlatColor({0.7f, 0.6f, 0.5f})      /*specular*/,
@@ -652,23 +653,6 @@ void RayTracer::CreateSceneWineGlass() {
    m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
    m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
 
-   uint wineGlass = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/WineGlass.obj"));
-
-   CreateCornellBox(size, 50.0f);
-
-   Material glass = Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f);
-   Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
-
-   const glm::vec2 rectSize = {165.0f, 330.0f};
-   const glm::vec3 rectCentre = glm::vec3 {-120.0f, -(size.y - rectSize.y) * 0.5f, -250.0f};
-   const glm::vec3 rectRotation = {glm::radians(0.0f), glm::radians(-39.5f), glm::radians(0.0f)};
-   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(rectCentre, rectSize, rectRotation, chromium));
-
-   glm::vec3 glassCentre = {130.0f, -278.0f, -170.0f};
-   glm::vec3 glassSize = {200.0f, 200.0f, 200.0f};
-
-   glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
-   m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, glass));
 
 }
 
@@ -1560,7 +1544,7 @@ void RayTracer::RecordCommandBuffers() {
    //       (without re-recording the entire command buffer)
    //       Could just shove them into the uniform buffer object instead.
    Constants constants = {
-      32                           /*max ray bounces*/,
+      64                           /*max ray bounces*/,
       0.0                         /*lens aperture            DISABLED IN RAYGEN SHADER*/,
       800.0                       /*lens focal length        DISABLED IN RAYGEN SHADER*/
    };
