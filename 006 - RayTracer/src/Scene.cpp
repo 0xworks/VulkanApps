@@ -20,6 +20,16 @@ void Scene::SetZenithColor(const glm::vec3& color) {
 }
 
 
+bool Scene::GetAccumulateFrames() const {
+   return m_AccumulateFrames;
+}
+
+
+void Scene::SetAccumulateFrames(const bool b) {
+   m_AccumulateFrames = b;
+}
+
+
 uint32_t
 Scene::AddModel(std::unique_ptr<Model> model) {
    m_Models.emplace_back(std::move(model));

@@ -153,14 +153,14 @@ void RayTracer::CreateScene() {
 
    //CreateSceneFurnaceTest();
    //CreateSceneNormalsTest();
-   CreateSceneSimple();
+   //CreateSceneSimple();
    //CreateSceneRayTracingInOneWeekend();
    //CreateSceneRayTracingTheNextWeekTexturesAndLight();
    //CreateSceneCornellBoxWithBoxes();
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
-   //CreateSceneWineGlass();
+   CreateSceneWineGlass();
 
 }
 
@@ -174,19 +174,24 @@ void RayTracer::CreateSceneFurnaceTest() {
    m_Scene.SetZenithColor({1.0f, 1.0f, 1.0f});
 
    Material grey = Lambertian(FlatColor({0.5f, 0.5f, 0.5f}));
-   Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
+   Material metal = Metallic(FlatColor({0.5f, 0.5f, 0.5f}), 0.0);
+
+   // Do not accumulate frames in the furnace test.
+   // The point is to test 1 iteration of the random sampling, not accumulated result.
+   m_Scene.SetAccumulateFrames(false);
 
    enum class Test {
       lambertian,
       metal
    };
 
-   Test test = Test::metal;
+   Test test = Test::lambertian;
 
    switch (test) {
       case Test::lambertian:
          // If lambertian material is working properly, then the rendered result
-         // should be a uniform grey filled circle
+         // should be a uniform grey filled circle.
+         // The color of the circle should be RGB(180,180,180)   (=sqrt(0.5) from gamma correction, times 255 for conversion to RGB)
          m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, 2.0f}, 1.0f, grey));
          break;
 
@@ -195,7 +200,7 @@ void RayTracer::CreateSceneFurnaceTest() {
          // should be a uniform grey filled circle.
          // Because:  metal material is a perfect reflector (real metals aren't),
          // and metal tints reflected light with its color (not so "glossy" non-metals)
-         m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, -2.0f}, 1.0f, chromium));
+         m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, -2.0f}, 1.0f, metal));
          break;
    }
 
@@ -242,30 +247,27 @@ void RayTracer::CreateSceneSimple() {
    m_Direction = {-2.0f, -0.25f, -0.5};
    m_Up = {0.0f, 1.0f, 0.0f};
 
-   m_Scene.SetHorizonColor(glm::vec3{0.75f, 0.85f, 1.0f} * 0.8f);
-   m_Scene.SetZenithColor(glm::vec3{0.5f, 0.7f, 1.0f} * 0.8f);
+   m_Scene.SetHorizonColor({0.2f, 0.2f, 0.2f});
+   m_Scene.SetZenithColor({0.02f, 0.02f, 0.02f});
 
-   uint wineGlass = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/WineGlass.obj"));
-
-   Material checker = Lambertian(CheckerBoard({0.2f, 0.3f, 0.1f}, {0.9, 0.9, 0.9}, 10.0f));
+   Material blue = Lambertian(FlatColor({0.2f, 0.2f, 1.0f}));
    Material white = Lambertian(FlatColor({1.0f, 1.0f, 1.0f}));
    Material hardPlastic = Phong(FlatColor({0.2f, 0.2f, 1.0f}), 0.1f, 0.1f);
    Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
-   Material glass = Dielectric(FlatColor({1.0f,1.0f, 1.0f}), 1.5f);
-   Material light = Light(FlatColor({1000.0f, 1000.0f, 1000.0f}), 0.0);
+   Material light = Light(FlatColor({170.0f, 170.0f, 170.0f}), 0.0);
 
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-      glm::vec3{0.0f, 1.0f, 0.0f},
-      glm::vec2{1000.0f, 1000.0f},
-      glm::vec3{glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)},
-      checker
+      glm::vec3 {0.0f, 0.0f, 0.0f},
+      glm::vec2 {1000.0f, 1000.0f},
+      glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)},
+      blue
    ));
 
-   glm::vec3 glassCentre = {0.0f, 1.0f, 0.0f};
-   glm::vec3 glassSize = {1.0f, 1.0f, 1.0f};
-
-   glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
-   m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, glass));
+   m_Scene.AddInstance(std::make_unique<SphereInstance>(
+      glm::vec3 {0.0f, 1.0f, 0.0f}   /*centre*/,
+      1.0f                            /*radius*/,
+      hardPlastic
+   ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
       glm::vec3(0.0f, 20.0f, 20.0f),
@@ -273,7 +275,6 @@ void RayTracer::CreateSceneSimple() {
       light
    ));
 }
-
 
 void RayTracer::CreateSceneRayTracingInOneWeekend() {
    m_Eye = {8.0f, 3.0f, 2.0f};
@@ -653,6 +654,23 @@ void RayTracer::CreateSceneWineGlass() {
    m_Scene.SetHorizonColor({0.0f, 0.0f, 0.0f});
    m_Scene.SetZenithColor({0.0f, 0.0f, 0.0f});
 
+   uint wineGlass = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/WineGlass.obj"));
+
+   CreateCornellBox(size, 50.0f);
+
+   Material glass = Dielectric(FlatColor({1.0f, 1.0f, 1.0f}), 1.5f);
+   Material chromium = Metallic(FlatColor({0.549f, 0.556f, 0.554f}), 0.0);
+
+   const glm::vec2 rectSize = {165.0f, 330.0f};
+   const glm::vec3 rectCentre = glm::vec3 {-120.0f, -(size.y - rectSize.y) * 0.5f, -250.0f};
+   const glm::vec3 rectRotation = {glm::radians(0.0f), glm::radians(-39.5f), glm::radians(0.0f)};
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(rectCentre, rectSize, rectRotation, chromium));
+
+   glm::vec3 glassCentre = {130.0f, -278.0f, -170.0f};
+   glm::vec3 glassSize = {200.0f, 200.0f, 200.0f};
+
+   glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
+   m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, glass));
 
 }
 
@@ -1638,6 +1656,9 @@ void RayTracer::Update(double deltaTime) {
       (glfwGetKey(m_Window, GLFW_KEY_F) == GLFW_PRESS) ||
       m_LeftMouseDown
    ) {
+      m_AccumulatedImageCount = 0;
+   }
+   if (!m_Scene.GetAccumulateFrames()) {
       m_AccumulatedImageCount = 0;
    }
    ++m_AccumulatedImageCount;

@@ -13,6 +13,9 @@ public:
    glm::vec3 GetZenithColor() const;
    void SetZenithColor(const glm::vec3& color);
 
+   bool GetAccumulateFrames() const;
+   void SetAccumulateFrames(const bool b);
+
    uint32_t AddModel(std::unique_ptr<Model> model);
    uint32_t AddTextureResource(std::string name, std::string fileName);
    uint32_t AddInstance(std::unique_ptr<Instance> instance);
@@ -29,4 +32,5 @@ private:
    std::vector<std::string> m_TextureNames;
    std::vector<std::string> m_TextureFileNames;
    std::vector<std::unique_ptr<Instance>> m_Instances;           // instances of models (i.e. tuples of model, transform, texture, material)
+   bool m_AccumulateFrames = true;
 };
