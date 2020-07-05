@@ -11,10 +11,6 @@
 #include <functional>
 #include <memory>
 
-#ifdef CreateWindow
-#undef CreateWindow
-#endif
-
 struct GLFWwindow;
 
 namespace Vulkan {

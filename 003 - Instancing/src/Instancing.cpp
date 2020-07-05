@@ -535,7 +535,8 @@ void Instancing::CreatePipeline() {
    pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
    pipelineCI.pStages = shaderStages.data();
 
-   m_Pipeline = m_Device.createGraphicsPipeline(m_PipelineCache, pipelineCI);
+   // .value works around bug in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
+   m_Pipeline = m_Device.createGraphicsPipeline(m_PipelineCache, pipelineCI).value;
 
    // Shader modules are no longer needed once the graphics pipeline has been created
    DestroyShaderModule(shaderStages[0].module);

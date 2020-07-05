@@ -1285,7 +1285,8 @@ void RayTracer::CreatePipeline() {
       0                                          /*basePipelineIndex*/
    };
 
-   m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI);
+   // .value works around bug in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
+   m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI).value;
 
    // Create buffer for the shader binding table
    const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaderGroups;

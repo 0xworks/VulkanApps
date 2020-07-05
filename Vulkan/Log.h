@@ -4,6 +4,11 @@
 
 #include "spdlog/spdlog.h"
 
+// On Windows, spdlog.h brings in Windows.h, which in turn defines some things which clash with the Vulkan SDK and with our code.
+// undef them here.
+#undef MemoryBarrier
+#undef CreateWindow
+
 namespace Vulkan {
 
 class Log {

@@ -628,7 +628,8 @@ void RayTraceSpheres::CreatePipeline() {
       0                                          /*basePipelineIndex*/
    };
 
-   m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI);
+   // .value works around bug in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
+   m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI).value;
 
    // Shader modules are no longer needed once the graphics pipeline has been createdvk
    for (auto& shaderStage : shaderStages) {
