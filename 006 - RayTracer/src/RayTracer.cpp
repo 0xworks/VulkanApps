@@ -1288,15 +1288,30 @@ void RayTracer::CreatePipeline() {
    // .value works around bug in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
    m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI).value;
 
-   // Create buffer for the shader binding table
-   const vk::DeviceSize size = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaderGroups;
+   // Create buffer for the shader binding table.
+   // Note that regardless of the shaderGroupHandleSize, the entries in the shader binding table must be aligned on multiples of m_RayTracingProperties.shaderGroupBaseAlignment
+   uint32_t shaderBindingTableEntrySize = (m_RayTracingProperties.shaderGroupHandleSize + m_RayTracingProperties.shaderGroupBaseAlignment - 1) & ~(m_RayTracingProperties.shaderGroupBaseAlignment - 1);
 
+   const vk::DeviceSize tableSize = static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eNumShaderGroups;
+   const vk::DeviceSize handlesSize = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaderGroups;
+
+   uint32_t tableStride = shaderBindingTableEntrySize;
+   uint32_t handleStride = m_RayTracingProperties.shaderGroupHandleSize;
+
+   // First, get all the handles from the device,  and then copy them to the shader binding table with the correct alignment
    std::vector<uint8_t> shaderHandleStorage;
-   shaderHandleStorage.resize(size);
+   shaderHandleStorage.resize(handlesSize);
    m_Device.getRayTracingShaderGroupHandlesNV<uint8_t>(m_Pipeline, 0, eNumShaderGroups, shaderHandleStorage);
 
-   m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
-   m_ShaderBindingTable->CopyFromHost(0, size, shaderHandleStorage.data());
+   std::vector<uint8_t> shaderBindingTable;
+   shaderBindingTable.resize(tableSize);
+
+   for (uint32_t i = 0; i < eNumShaderGroups; ++i) {
+      std::memcpy(shaderBindingTable.data() + (i * tableStride), shaderHandleStorage.data() + (i * handleStride), handleStride);
+   }
+
+   m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, tableSize, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
+   m_ShaderBindingTable->CopyFromHost(0, tableSize, shaderBindingTable.data());
 
    // Shader modules are no longer needed once the graphics pipeline has been created
    for (auto& shaderStage : shaderStages) {
@@ -1575,10 +1590,12 @@ void RayTracer::RecordCommandBuffers() {
       commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, m_Pipeline);
       commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
 
+      uint32_t shaderBindingTableEntrySize = (m_RayTracingProperties.shaderGroupHandleSize + m_RayTracingProperties.shaderGroupBaseAlignment - 1) & ~(m_RayTracingProperties.shaderGroupBaseAlignment - 1);
+
       commandBuffer.traceRaysNV(
-         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eRayGenGroup,
-         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eMissGroup, m_RayTracingProperties.shaderGroupHandleSize,
-         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eFirstHitGroup, m_RayTracingProperties.shaderGroupHandleSize,
+         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eRayGenGroup,
+         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eMissGroup, shaderBindingTableEntrySize,
+         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eFirstHitGroup, shaderBindingTableEntrySize,
          nullptr, 0, 0,
          m_Extent.width, m_Extent.height, 1
       );

@@ -1168,7 +1168,9 @@ void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const s
 void Application::DestroyBottomLevelAccelerationStructures() {
    if (m_Device) {
       for (auto& blas : m_BLAS) {
-         m_Device.destroy(blas.m_AccelerationStructure);
+         // Workaround bug in vulkan.hpp (from Vulkan SDK version 1.2.141.2). Refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/633
+         //m_Device.destroy(blas.m_AccelerationStructure);
+         m_Device.destroyAccelerationStructureNV(blas.m_AccelerationStructure);
          blas.m_AccelerationStructure = nullptr;
          blas.m_Handle = 0;
       }
@@ -1219,7 +1221,11 @@ void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulka
 
 void Application::DestroyTopLevelAccelerationStructure() {
    if (m_Device && m_TLAS.m_AccelerationStructure) {
-      m_Device.destroy(m_TLAS.m_AccelerationStructure);
+
+      // Workaround bug in vulkan.hpp (from Vulkan SDK version 1.2.141.2). Refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/633
+      //m_Device.destroy(m_TLAS.m_AccelerationStructure);
+      m_Device.destroyAccelerationStructureNV(m_TLAS.m_AccelerationStructure);
+
       m_TLAS.m_AccelerationStructure = nullptr;
       if (m_TLAS.m_Memory) {
          m_Device.free(m_TLAS.m_Memory);
