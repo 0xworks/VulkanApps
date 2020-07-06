@@ -15,7 +15,7 @@ The framework, and example applications are based heavily on the following excel
 ## Building
 I have tested this on Windows only.  Other platforms may work with some adaptation of the cmake files.
 
-You first need to install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
+You first need to install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home).  I am currently using Vulkan SDK 1.2.141.2 - other versions may (or may not) work.
 
 For other dependencies, I use [vcpkg](https://github.com/Microsoft/vcpkg), but other means of installing them should also work (so long as cmake can find them via find_package(...))
 
@@ -25,7 +25,6 @@ The dependencies are:
  * [spdlog](https://github.com/gabime/spdlog)   (vcpkg install spdlog)
  * [stb](https://github.com/nothings/stb)    (vcpkg install stb)
  * [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)   (vcpkg install tinyobjloader)
- * vulkan   (vcpkg install vulkan)
 
 ## Screenshots
 <img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/Balls.png" width="49%" /><img src="https://github.com/freeman40/VulkanApps/blob/master/Screenshots/RayTracingTheNextWeekFinal.png" width="49%" />
