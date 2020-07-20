@@ -635,7 +635,7 @@ void RasterSpheres::RecordCommandBuffers() {
 
 void RasterSpheres::Update(double deltaTime) {
    __super::Update(deltaTime);
-   m_UniformBufferObject.projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
+   m_UniformBufferObject.projection = glm::perspective(m_FoVRadians, static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
    m_UniformBufferObject.modelView = glm::lookAt(m_Eye, m_Eye + m_Direction, m_Up);
    m_UniformBufferObject.projection[1][1] *= -1;
 }

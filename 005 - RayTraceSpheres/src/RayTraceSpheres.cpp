@@ -949,7 +949,7 @@ void RayTraceSpheres::RecordCommandBuffers() {
 
 void RayTraceSpheres::Update(double deltaTime) {
    __super::Update(deltaTime);
-   glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
+   glm::mat4 projection = glm::perspective(m_FoVRadians, static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
    projection[1][1] *= -1;
    glm::mat4 modelView = glm::lookAt(m_Eye, m_Eye + m_Direction, m_Up);
 

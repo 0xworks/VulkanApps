@@ -246,6 +246,7 @@ protected:
    glm::vec3 m_Eye = {0.0f, 0.0f, 4.0f};
    glm::vec3 m_Direction = glm::normalize(glm::vec3 {0.0f, 0.0f, -4.0f});
    glm::vec3 m_Up = glm::normalize(glm::vec3 {0.0f, 1.0f, 0.0f});
+   float m_FoVRadians = glm::radians(45.0f);
    //
    ////////////////////////////////
 

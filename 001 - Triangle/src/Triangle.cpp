@@ -512,7 +512,7 @@ void Triangle::RenderFrame() {
 
    glm::mat4 model = glm::rotate(glm::identity<glm::mat4>(), glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
    glm::mat4 view = glm::lookAt(m_Eye, m_Eye + m_Direction, m_Up);
-   glm::mat4 proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
+   glm::mat4 proj = glm::perspective(m_FoVRadians, static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
    proj[1][1] *= -1;
 
    UniformBufferObject ubo {

@@ -1685,7 +1685,7 @@ void RayTracer::Update(double deltaTime) {
 
 void RayTracer::RenderFrame() {
 
-   glm::mat4 projection = glm::perspective(glm::radians(40.0f), static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
+   glm::mat4 projection = glm::perspective(m_FoVRadians, static_cast<float>(m_Extent.width) / static_cast<float>(m_Extent.height), 0.01f, 100.0f);
    // flip y axis for vulkan
    projection[1][1] *= -1;
    glm::mat4 modelView = glm::lookAt(m_Eye, m_Eye + glm::normalize(m_Direction), m_Up);
