@@ -66,6 +66,17 @@ void main() {
       }
 
       attenuation *= ray.attenuationAndDistance.rgb;
+
+      // Russian roulette ray termination
+      if(b > constants.minRayBounces) {
+         const float p = max(max(attenuation.r, attenuation.g), attenuation.b);
+         // keep the ray with probability p, so as attenuation goes to zero, so does probability of keeping the ray
+         if(RandomFloat(ray.randomSeed) > p) {
+            break;
+         }
+         attenuation *= 1.0 / p;
+      }
+
       origin = origin + t * direction;
       direction = vec4(ray.scatterDirection.xyz, 0.0);
    }

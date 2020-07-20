@@ -1578,6 +1578,7 @@ void RayTracer::RecordCommandBuffers() {
    //       (without re-recording the entire command buffer)
    //       Could just shove them into the uniform buffer object instead.
    Constants constants = {
+      3                           /*min ray bounces*/,
       64                          /*max ray bounces*/,
       0.0                         /*lens aperture            DISABLED IN RAYGEN SHADER*/,
       800.0                       /*lens focal length        DISABLED IN RAYGEN SHADER*/
