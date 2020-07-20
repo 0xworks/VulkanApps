@@ -42,7 +42,7 @@ void main() {
    const vec2 texCoord = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
 
    vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
-   vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
+   vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0)) * sign(dot(normal, -gl_ObjectRayDirectionNV));
    // texCoords dont need transforming
 
    ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
