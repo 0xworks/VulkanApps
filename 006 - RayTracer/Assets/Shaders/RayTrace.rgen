@@ -84,9 +84,11 @@ void main() {
    vec3 accumulatedColor = ubo.accumulatedFrameCount == 1? rayColor : imageLoad(accumulationImage, ivec2(gl_LaunchIDNV.xy)).rgb + rayColor;
    imageStore(accumulationImage, ivec2(gl_LaunchIDNV.xy), vec4(accumulatedColor, 0.0));
 
+   vec4 pixelColor = vec4(accumulatedColor / ubo.accumulatedFrameCount, 1.0);
+
    // gamma correction
-   vec4 pixelColor = vec4(accumulatedColor / ubo.accumulatedFrameCount, 0.0);
-   pixelColor = sqrt(pixelColor);
+   const float gamma = 1.0 / 2.2;
+   pixelColor = vec4(pow(pixelColor.r, gamma), pow(pixelColor.g, gamma), pow(pixelColor.b, gamma), 1.0);
 
    imageStore(outputImage, ivec2(gl_LaunchIDNV.xy), pixelColor);
 }
