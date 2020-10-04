@@ -4,8 +4,6 @@
 
 namespace Vulkan {
 
-class Application;
-
 class Image {
 public:
 
@@ -18,8 +16,6 @@ public:
    Image& operator=(Image&& that);
 
    virtual ~Image();
-
-   Image(Application& app);
 
    vk::Image m_Image;
    vk::DeviceMemory m_Memory;

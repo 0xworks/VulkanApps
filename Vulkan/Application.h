@@ -226,7 +226,6 @@ protected:
    std::vector<vk::Semaphore> m_ImageAvailableSemaphores;
    std::vector<vk::Semaphore> m_RenderFinishedSemaphores;
    std::vector<vk::Fence> m_InFlightFences;
-   std::vector<vk::Fence> m_ImagesInFlight;
 
    vk::PipelineCache m_PipelineCache;
 
