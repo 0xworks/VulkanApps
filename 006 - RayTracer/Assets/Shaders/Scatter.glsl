@@ -97,6 +97,26 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const in
 
 
 RayPayload ScatterLambertian(const vec3 hitPoint, const vec3 normal, const vec3 color, inout uint randomSeed) {
+   //
+   // sample a scatter direction.
+   //
+   // color = BRDF * dot(normal, scatter direction) / probability of choosing scatter direction
+   //
+   // So, lambertian, with uniform sampling on hemisphere:
+   // color = BRDF   *  dot(normal, scatter direction)  /  probability of choosing scatter direction
+   //       = kd/pi  *  dot(normal, scatter direction)  /  (1/2pi)
+   //       = 2kd * dot(normal, scatter direction)
+   //
+   // Or, lambertian, with cosine weighted sampling on hemisphere
+   // color = BRDF   *  dot(normal, scatter direction) /  probability of choosing scatter direction
+   // color = kd/pi  *  dot(normal, scatter direction) /  (dot(normal, scatter direction)/pi)
+   //       = kd
+   //
+   // Or, lambertian, with importance sampling towards an object
+   // color = BRDF   *  dot(normal, scatter direction)  /  probability of choosing scatter direction
+   // color = kd/pi  *  dot(normal, scatter direction)  /  probability of choosing scatter direction
+   //
+   // Here we are returning the color for Lambertian with cosine weighted sampling, which is just Kd, irrespective of scatter direction
    const vec3 scatterDirection = RandomOnUnitHemisphere(normal, 1.0, randomSeed);
    return RayPayload(vec4(color, gl_HitTNV), vec4(0.0), vec4(scatterDirection, 1.0), randomSeed);
 }
