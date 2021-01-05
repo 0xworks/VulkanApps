@@ -1057,14 +1057,14 @@ void Application::GenerateMIPMaps(vk::Image image, const vk::Format format, cons
          cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr, barrier);
 
          vk::ImageBlit blit;
-         blit.srcOffsets[0] = {0, 0, 0};
-         blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+         blit.srcOffsets[0] = vk::Offset3D{0, 0, 0};
+         blit.srcOffsets[1] = vk::Offset3D{mipWidth, mipHeight, 1};
          blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
          blit.srcSubresource.mipLevel = i - 1;
          blit.srcSubresource.baseArrayLayer = 0;
          blit.srcSubresource.layerCount = 1;
-         blit.dstOffsets[0] = {0, 0, 0};
-         blit.dstOffsets[1] = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+         blit.dstOffsets[0] = vk::Offset3D{0, 0, 0};
+         blit.dstOffsets[1] = vk::Offset3D{mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
          blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
          blit.dstSubresource.mipLevel = i;
          blit.dstSubresource.baseArrayLayer = 0;
@@ -1151,7 +1151,13 @@ void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const s
          nullptr                      /*pDeviceIndices*/
       };
       m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
-      m_Device.getAccelerationStructureHandleNV<uint64_t>(blas.m_AccelerationStructure, blas.m_Handle);
+
+      // This ends up instantiating the wrong template.  compiler bug?
+      //m_Device.getAccelerationStructureHandleNV<uint64_t>(blas.m_AccelerationStructure, blas.m_Handle);
+      //
+      // workaround:
+      vk::ArrayProxy<uint64_t> handle(blas.m_Handle);
+      m_Device.getAccelerationStructureHandleNV<uint64_t>(blas.m_AccelerationStructure, handle);
       memoryOffset += memoryRequirements[i++].memoryRequirements.size;
    }
 }
@@ -1207,7 +1213,8 @@ void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulka
       nullptr                        /*pDeviceIndices*/
    };
    m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
-   m_Device.getAccelerationStructureHandleNV<uint64_t>(m_TLAS.m_AccelerationStructure, m_TLAS.m_Handle);
+   vk::ArrayProxy<uint64_t> handle(m_TLAS.m_Handle);
+   m_Device.getAccelerationStructureHandleNV<uint64_t>(m_TLAS.m_AccelerationStructure, handle);
 }
 
 

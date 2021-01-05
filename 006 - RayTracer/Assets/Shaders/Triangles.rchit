@@ -22,6 +22,7 @@ Vertex UnpackVertex(uint index) {
    Vertex v;
    v.pos = vec3(vertices[offset + 0], vertices[offset + 1], vertices[offset + 2]);
    v.normal = vec3(vertices[offset + 3], vertices[offset + 4], vertices[offset + 5]);
+   v.uv = vec2(vertices[offset + 6], vertices[offset + 7]);
 
    return v;
 }
@@ -36,14 +37,13 @@ void main() {
 
    const vec3 barycentric = vec3(1.0f - hit.x - hit.y, hit.x, hit.y);
 
-   // These are in model coordinates.  Need to transform to world for "scatter" part to work properly
    const vec3 hitPoint = v0.pos * barycentric.x + v1.pos * barycentric.y + v2.pos * barycentric.z;
    const vec3 normal = normalize(v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z);
    const vec2 texCoord = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
 
+   // Transform hitPoint and normal to world coords for "scatter" function (texCoords should not be transformed)
    vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
    vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
-   // texCoords dont need transforming
 
    ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
 }

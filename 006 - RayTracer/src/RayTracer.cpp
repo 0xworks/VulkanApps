@@ -160,7 +160,8 @@ void RayTracer::CreateScene() {
    //CreateSceneCornellBoxWithSmokeBoxes();
    //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
-   CreateSceneWineGlass();
+   //CreateSceneWineGlass();
+   CreateSceneMaterialBall();
 
 }
 
@@ -191,7 +192,7 @@ void RayTracer::CreateSceneFurnaceTest() {
       case Test::lambertian:
          // If lambertian material is working properly, then the rendered result
          // should be a uniform grey filled circle.
-         // The color of the circle should be RGB(180,180,180)   (=sqrt(0.5) from gamma correction, times 255 for conversion to RGB)
+         // The color of the circle should be RGB(186,186,186)   (=pow(0.5 , 1/2.2) from gamma correction, times 255 for conversion to RGB)
          m_Scene.AddInstance(std::make_unique<SphereInstance>(glm::vec3 {0.0f, 1.0f, 2.0f}, 1.0f, grey));
          break;
 
@@ -264,7 +265,7 @@ void RayTracer::CreateSceneSimple() {
    ));
 
    m_Scene.AddInstance(std::make_unique<SphereInstance>(
-      glm::vec3 {0.0f, 1.0f, 0.0f}   /*centre*/,
+      glm::vec3 {0.0f, 1.0f, 0.0f}    /*centre*/,
       1.0f                            /*radius*/,
       hardPlastic
    ));
@@ -285,7 +286,7 @@ void RayTracer::CreateSceneRayTracingInOneWeekend() {
    m_Scene.SetZenithColor({0.5f, 0.7f, 1.0f});
 
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-      glm::vec3 {0.0f, 0.0f, 0.0f}                                         /*origin*/,
+      glm::vec3 {0.0f, 0.0f, 0.0f}                                              /*origin*/,
       glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
       glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
       Lambertian(                                                               /*material*/
@@ -368,7 +369,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
    // note: Shifted everything up by 1 unit in the y direction, so that the background plane is not at y=0
    //       (checkerboard texture does not work well across large axis-aligned faces where sin(value) = 0)
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(
-      glm::vec3 {0.0f, 1.0f, 0.0f}                                         /*origin*/,
+      glm::vec3 {0.0f, 1.0f, 0.0f}                                              /*origin*/,
       glm::vec2 {1000.0f, 1000.0f}                                              /*size*/,
       glm::vec3 {glm::radians(-90.0f), glm::radians(0.0f), glm::radians(0.0f)}  /*rotation*/,
       Lambertian(                                                               /*material*/
@@ -417,7 +418,7 @@ void RayTracer::CreateSceneRayTracingTheNextWeekTexturesAndLight() {
             } else if (chooseMaterial < 0.95) {
                // metal
                material = Metallic(
-                  FlatColor({0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat()), 0.5 * (1 + RandomFloat())}),
+                  FlatColor({0.5f * (1.0f + RandomFloat()), 0.5f * (1.0f + RandomFloat()), 0.5f * (1.0f + RandomFloat())}),
                   0.5f * RandomFloat()
                );
             } else {
@@ -671,6 +672,30 @@ void RayTracer::CreateSceneWineGlass() {
 
    glm::mat3x4 transform = glm::transpose(glm::scale(glm::translate(glm::identity<glm::mat4x4>(), glassCentre), glassSize));
    m_Scene.AddInstance(std::make_unique<Instance>(wineGlass, transform, glass));
+}
+
+
+void RayTracer::CreateSceneMaterialBall() {
+   m_Eye = {0.0f, 5.0f, 10.0f};
+   m_Direction = glm::normalize(glm::vec3 {0.0f, -0.5f, -10.0f});
+   m_Up = {0.0f, 1.0f, 0.0f};
+
+   m_Scene.AddTextureResource("Backdrop", "Assets/Textures/Backdrop.png");
+   m_Scene.AddTextureResource("MaterialBall", "Assets/Textures/MaterialBall.png");
+
+   m_Scene.SetHorizonColor({110.0f / 255.0f, 151.0f / 255.0f, 203.0f / 255.0f});
+   m_Scene.SetZenithColor({185.0f / 255.0f, 206.0f / 255.0f, 235.0f / 255.0f});
+
+   uint backdrop = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/Backdrop.obj"));
+   uint materialBall = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/MaterialBall.obj"));
+
+   glm::mat3x4 transform = transpose(glm::identity<glm::mat4x4>());
+   m_Scene.AddInstance(std::make_unique<Instance>(backdrop, transform, Lambertian(Texture {m_Scene.GetTextureId("Backdrop")})));
+   m_Scene.AddInstance(std::make_unique<Instance>(materialBall, transform, Lambertian(Texture {m_Scene.GetTextureId("MaterialBall")})));
+
+   // a light
+   const Material light = Light(FlatColor({2000.0f, 2000.0f, 2000.0f}), 1.0f);
+   m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3 {12.0f, 30.0f, 15.0f}, glm::vec2 {2.0f, 2.0f}, glm::vec3 {glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));
 
 }
 
@@ -838,16 +863,16 @@ void RayTracer::CreateTextureResources() {
          texHeight,
          mipLevels,
          vk::SampleCountFlagBits::e1,
-         vk::Format::eR8G8B8A8Unorm,
+         vk::Format::eR8G8B8A8Srgb,
          vk::ImageTiling::eOptimal,
          vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
          vk::MemoryPropertyFlagBits::eDeviceLocal
       );
       TransitionImageLayout(texture->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, mipLevels);
       CopyBufferToImage(stagingBuffer.m_Buffer, texture->m_Image, texWidth, texHeight);
-      GenerateMIPMaps(texture->m_Image, vk::Format::eR8G8B8A8Unorm, texWidth, texHeight, mipLevels);
+      GenerateMIPMaps(texture->m_Image, vk::Format::eR8G8B8A8Srgb, texWidth, texHeight, mipLevels);
 
-      texture->CreateImageView(vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor, mipLevels);
+      texture->CreateImageView(vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, mipLevels);
 
       m_Textures.emplace_back(std::move(texture));
    }
@@ -1132,9 +1157,9 @@ void RayTracer::CreatePipelineLayout() {
    // In a more complex scenario you would have different pipeline layouts for different descriptor set layouts that could be reused
 
    vk::PushConstantRange pushConstantRange = {
-      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eMissNV    /*stageFlags*/,
-      0                                                                        /*offset*/,
-      static_cast<uint32_t>(sizeof(Constants))                                 /*size*/
+      vk::ShaderStageFlagBits::eRaygenNV         /*stageFlags*/,
+      0                                          /*offset*/,
+      static_cast<uint32_t>(sizeof(Constants))   /*size*/
    };
 
    m_PipelineLayout = m_Device.createPipelineLayout({
@@ -1587,7 +1612,7 @@ void RayTracer::RecordCommandBuffers() {
    for (uint32_t i = 0; i < m_CommandBuffers.size(); ++i) {
       vk::CommandBuffer& commandBuffer = m_CommandBuffers[i];
       commandBuffer.begin(commandBufferBI);
-      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eMissNV, 0, constants);
+      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenNV, 0, constants);
       commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, m_Pipeline);
       commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
 
