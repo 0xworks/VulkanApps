@@ -66,7 +66,7 @@ set(
    model_files
    "Assets/Models/Backdrop.obj"
    "Assets/Models/Box.obj"
-   "Assets/Models/MaterialBall.obj"
+   "Assets/Models/ShaderBall.obj"
    "Assets/Models/Rectangle2D.obj"
    "Assets/Models/Sphere.obj"
    "Assets/Models/WineGlass.obj"
@@ -76,7 +76,6 @@ set(
    texture_files
    "Assets/Textures/earthmap.jpg"
    "Assets/Textures/Backdrop.png"
-   "Assets/Textures/MaterialBall.png"
 )
 
 set_source_files_properties(${shader_header_files} PROPERTIES HEADER_FILE_ONLY TRUE)

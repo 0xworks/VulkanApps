@@ -161,7 +161,7 @@ void RayTracer::CreateScene() {
    //CreateSceneCornellBoxWithEarth();
    //CreateSceneRayTracingTheNextWeekFinal();
    //CreateSceneWineGlass();
-   CreateSceneMaterialBall();
+   CreateSceneShaderBall();
 
 }
 
@@ -675,26 +675,27 @@ void RayTracer::CreateSceneWineGlass() {
 }
 
 
-void RayTracer::CreateSceneMaterialBall() {
+void RayTracer::CreateSceneShaderBall() {
    m_Eye = {0.0f, 5.0f, 10.0f};
    m_Direction = glm::normalize(glm::vec3 {0.0f, -0.5f, -10.0f});
    m_Up = {0.0f, 1.0f, 0.0f};
 
+   const Material light = Light(FlatColor({2000.0f, 2000.0f, 2000.0f}), 1.0f);
+   const Material hardPlastic = Phong(FlatColor({0.2f, 0.2f, 1.0f}), 0.1f, 0.1f);
+
    m_Scene.AddTextureResource("Backdrop", "Assets/Textures/Backdrop.png");
-   m_Scene.AddTextureResource("MaterialBall", "Assets/Textures/MaterialBall.png");
 
    m_Scene.SetHorizonColor({110.0f / 255.0f, 151.0f / 255.0f, 203.0f / 255.0f});
    m_Scene.SetZenithColor({185.0f / 255.0f, 206.0f / 255.0f, 235.0f / 255.0f});
 
    uint backdrop = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/Backdrop.obj"));
-   uint materialBall = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/MaterialBall.obj"));
+   uint shaderBall = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/ShaderBall.obj"));
 
    glm::mat3x4 transform = transpose(glm::identity<glm::mat4x4>());
    m_Scene.AddInstance(std::make_unique<Instance>(backdrop, transform, Lambertian(Texture {m_Scene.GetTextureId("Backdrop")})));
-   m_Scene.AddInstance(std::make_unique<Instance>(materialBall, transform, Lambertian(Texture {m_Scene.GetTextureId("MaterialBall")})));
+   m_Scene.AddInstance(std::make_unique<Instance>(shaderBall, transform, hardPlastic));
 
    // a light
-   const Material light = Light(FlatColor({2000.0f, 2000.0f, 2000.0f}), 1.0f);
    m_Scene.AddInstance(std::make_unique<Rectangle2DInstance>(glm::vec3 {12.0f, 30.0f, 15.0f}, glm::vec2 {2.0f, 2.0f}, glm::vec3 {glm::radians(90.0f), glm::radians(0.0f), glm::radians(0.0f)}, light));
 
 }

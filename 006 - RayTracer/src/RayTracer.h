@@ -84,7 +84,7 @@ private:
    void CreateSceneCornellBoxWithEarth();
    void CreateSceneRayTracingTheNextWeekFinal();
    void CreateSceneWineGlass();
-   void CreateSceneMaterialBall();
+   void CreateSceneShaderBall();
 
 private:
    Scene m_Scene;
