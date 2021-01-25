@@ -1,5 +1,10 @@
 // Shared by C++ application code and glsl shader code.
-// Keeps binding index numbers in synch!
+// Keeps index numbers in synch
+
+// positive numbers represent indexes into a texture array that is uploaded to the GPU
+// negative numbers (such as those defined here) are procedural textures
+// the number defines which procedure (in Scatter.glsl) is used
+
 #define TEXTURE_FLATCOLOR        -1
 #define TEXTURE_CHECKERBOARD     -2
 #define TEXTURE_SIMPLEX3D        -3

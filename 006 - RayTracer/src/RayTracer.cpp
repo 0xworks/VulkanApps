@@ -692,7 +692,7 @@ void RayTracer::CreateSceneShaderBall() {
    uint shaderBall = m_Scene.AddModel(std::make_unique<Model>("Assets/Models/ShaderBall.obj"));
 
    glm::mat3x4 transform = transpose(glm::identity<glm::mat4x4>());
-   m_Scene.AddInstance(std::make_unique<Instance>(backdrop, transform, Lambertian(Texture {m_Scene.GetTextureId("Backdrop")})));
+   m_Scene.AddInstance(std::make_unique<Instance>(backdrop, transform, Lambertian(Texture {m_Scene.GetTextureId("Backdrop"), {0.0f, 0.0f, 10.0f, 7.5f}})));
    m_Scene.AddInstance(std::make_unique<Instance>(shaderBall, transform, hardPlastic));
 
    // a light

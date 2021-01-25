@@ -7,8 +7,8 @@ using vec3 = glm::vec3;
 
 struct Texture {
    int type;
-   glm::vec4 param1;
-   glm::vec4 param2;
+   glm::vec4 param1 = {0.0f, 0.0f, 1.0f, 1.0f};
+   glm::vec4 param2 = {};
 };
 
 

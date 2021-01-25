@@ -90,7 +90,8 @@ vec3 Color(const vec3 hitPoint, const vec3 normal, const vec2 texCoord, const in
 
       default: {
          // sample from textures, indexed by textureType
-         return texture(samplers[textureType], texCoord).rgb;
+         // param1 has texture offset in xy, and texture scale in zw
+         return texture(samplers[textureType], textureParam1.xy + (texCoord * textureParam1.zw)).rgb;
       }
    }
 }
