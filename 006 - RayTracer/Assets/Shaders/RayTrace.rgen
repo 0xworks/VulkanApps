@@ -84,11 +84,14 @@ void main() {
    vec3 accumulatedColor = ubo.accumulatedFrameCount == 1? rayColor : imageLoad(accumulationImage, ivec2(gl_LaunchIDNV.xy)).rgb + rayColor;
    imageStore(accumulationImage, ivec2(gl_LaunchIDNV.xy), vec4(accumulatedColor, 0.0));
 
-   vec4 pixelColor = vec4(accumulatedColor / ubo.accumulatedFrameCount, 1.0);
+   vec3 pixelColor = accumulatedColor / ubo.accumulatedFrameCount;
+
+   // tonemap
+   pixelColor = vec3(1.0) - exp(-pixelColor);
 
    // gamma correction
    const float gamma = 1.0 / 2.2;
-   pixelColor = vec4(pow(pixelColor.r, gamma), pow(pixelColor.g, gamma), pow(pixelColor.b, gamma), 1.0);
+   pixelColor = pow(pixelColor, vec3(gamma));
 
-   imageStore(outputImage, ivec2(gl_LaunchIDNV.xy), pixelColor);
+   imageStore(outputImage, ivec2(gl_LaunchIDNV.xy), vec4(pixelColor, 0));
 }

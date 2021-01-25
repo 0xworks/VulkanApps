@@ -219,7 +219,7 @@ void Instancing::CreateTextureResources() {
 
    stbi_image_free(pixels);
 
-   m_Texture = std::make_unique<Vulkan::Image>(m_Device, m_PhysicalDevice, texWidth, texHeight, mipLevels, vk::SampleCountFlagBits::e1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   m_Texture = std::make_unique<Vulkan::Image>(m_Device, m_PhysicalDevice, vk::ImageViewType::e2D, texWidth, texHeight, mipLevels, vk::SampleCountFlagBits::e1, vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal);
    TransitionImageLayout(m_Texture->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, mipLevels);
    CopyBufferToImage(stagingBuffer.m_Buffer, m_Texture->m_Image, texWidth, texHeight);
    GenerateMIPMaps(m_Texture->m_Image, vk::Format::eR8G8B8A8Unorm, texWidth, texHeight, mipLevels);

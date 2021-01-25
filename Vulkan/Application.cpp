@@ -500,7 +500,7 @@ vk::Extent2D Application::SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& cap
 
 void Application::CreateDepthStencil() {
    // TODO anti-aliasing
-   m_DepthImage = std::make_unique<Image>(m_Device, m_PhysicalDevice, m_Extent.width, m_Extent.height, 1, vk::SampleCountFlagBits::e1, m_DepthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   m_DepthImage = std::make_unique<Image>(m_Device, m_PhysicalDevice, vk::ImageViewType::e2D, m_Extent.width, m_Extent.height, 1, vk::SampleCountFlagBits::e1, m_DepthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal);
    m_DepthImage->CreateImageView(m_DepthFormat, vk::ImageAspectFlagBits::eDepth, 1);
 }
 
@@ -794,7 +794,7 @@ void Application::BeginFrame() {
    // Wait until we know GPU has finished with the command buffer we are about to use...
    // Note that m_CurrentFrame and m_CurrentImage are not necessarily equal (particularly if we have, say, 3 swap chain images, and 2 frames-in-flight)
    // However, we do know that the GPU has finished with m_CurrentImage'th command buffer so long as the m_CurrentFrame'th fence is signaled
-   m_Device.waitForFences(m_InFlightFences[m_CurrentFrame], true, UINT64_MAX);
+   auto result = m_Device.waitForFences(m_InFlightFences[m_CurrentFrame], true, UINT64_MAX);
 }
 
 
@@ -969,7 +969,7 @@ void Application::TransitionImageLayout(vk::Image image, const vk::ImageLayout o
             0                                   /*baseMipLevel*/,
             mipLevels                           /*levelCount*/,
             0                                   /*baseArrayLayer*/,
-            1                                   /*layerCount*/
+            VK_REMAINING_ARRAY_LAYERS           /*layerCount*/
          }                                   /*subresourceRange*/
       };
 
@@ -990,6 +990,11 @@ void Application::TransitionImageLayout(vk::Image image, const vk::ImageLayout o
          barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
          barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
          sourceStage = vk::PipelineStageFlagBits::eTransfer;
+         destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+      } else if ((oldLayout == vk::ImageLayout::eGeneral) && (newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)) {
+         barrier.srcAccessMask = {};
+         barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+         sourceStage = vk::PipelineStageFlagBits::eAllCommands;
          destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
       } else {
          throw std::invalid_argument("unsupported layout transition!");
@@ -1041,7 +1046,7 @@ void Application::GenerateMIPMaps(vk::Image image, const vk::Format format, cons
             0                                    /*baseMipLevel*/,
             1                                    /*levelCount*/,
             0                                    /*baseArrayLayer*/,
-            1                                    /*layerCount*/
+            VK_REMAINING_ARRAY_LAYERS            /*layerCount*/
          }                                    /*subresourceRange*/
       };
 
@@ -1062,13 +1067,13 @@ void Application::GenerateMIPMaps(vk::Image image, const vk::Format format, cons
          blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
          blit.srcSubresource.mipLevel = i - 1;
          blit.srcSubresource.baseArrayLayer = 0;
-         blit.srcSubresource.layerCount = 1;
+         blit.srcSubresource.layerCount = VK_REMAINING_ARRAY_LAYERS;
          blit.dstOffsets[0] = vk::Offset3D{0, 0, 0};
          blit.dstOffsets[1] = vk::Offset3D{mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
          blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
          blit.dstSubresource.mipLevel = i;
          blit.dstSubresource.baseArrayLayer = 0;
-         blit.dstSubresource.layerCount = 1;
+         blit.dstSubresource.layerCount = VK_REMAINING_ARRAY_LAYERS;
          cmd.blitImage(image, vk::ImageLayout::eTransferSrcOptimal, image, vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
 
          barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;

@@ -8,5 +8,6 @@ struct UniformBufferObject {
    mat4 projInverse;
    vec4 horizonColor;
    vec4 zenithColor;
+   uint useSkybox;
    uint accumulatedFrameCount;
 };

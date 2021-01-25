@@ -95,6 +95,7 @@ private:
    std::unique_ptr<Vulkan::Buffer> m_MaterialBuffer;
    std::vector<std::unique_ptr<Vulkan::Image>> m_Textures;
    vk::Sampler m_TextureSampler;
+   std::unique_ptr<Vulkan::Image> m_SkyboxTexture;
    std::unique_ptr<Vulkan::Image> m_OutputImage;
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
    uint32_t m_AccumulatedImageCount = 0;

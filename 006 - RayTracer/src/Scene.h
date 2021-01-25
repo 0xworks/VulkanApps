@@ -13,6 +13,9 @@ public:
    glm::vec3 GetZenithColor() const;
    void SetZenithColor(const glm::vec3& color);
 
+   void SetSkybox(const std::string& filename);
+   const std::string& GetSkyboxTextureFileName() const;
+
    bool GetAccumulateFrames() const;
    void SetAccumulateFrames(const bool b);
 
@@ -28,6 +31,7 @@ public:
 private:
    glm::vec3 m_HorizonColor = glm::one<glm::vec3>();
    glm::vec3 m_ZenithColor = glm::one<glm::vec3>();
+   std::string m_SkyboxTextureName;
    std::vector<std::unique_ptr<Model>> m_Models;                 // unique models
    std::vector<std::string> m_TextureNames;
    std::vector<std::string> m_TextureFileNames;

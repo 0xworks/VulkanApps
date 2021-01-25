@@ -683,6 +683,7 @@ void RayTracer::CreateSceneShaderBall() {
    const Material light = Light(FlatColor({2000.0f, 2000.0f, 2000.0f}), 1.0f);
    const Material hardPlastic = Phong(FlatColor({0.2f, 0.2f, 1.0f}), 0.1f, 0.1f);
 
+   m_Scene.SetSkybox("Assets/Textures/birchwood_4k.hdr");
    m_Scene.AddTextureResource("Backdrop", "Assets/Textures/Backdrop.png");
 
    m_Scene.SetHorizonColor({110.0f / 255.0f, 151.0f / 255.0f, 203.0f / 255.0f});
@@ -839,6 +840,28 @@ void RayTracer::DestroyMaterialBuffer() {
 
 
 void RayTracer::CreateTextureResources() {
+
+   // sampler (we use the same one for all textures)
+   vk::SamplerCreateInfo ci = {
+      {}                                  /*flags*/,
+      vk::Filter::eLinear                 /*magFilter*/,
+      vk::Filter::eLinear                 /*minFilter*/,
+      vk::SamplerMipmapMode::eLinear      /*mipmapMode*/,
+      vk::SamplerAddressMode::eRepeat     /*addressModeU*/,
+      vk::SamplerAddressMode::eRepeat     /*addressModeV*/,
+      vk::SamplerAddressMode::eRepeat     /*addressModeW*/,
+      0.0f                                /*mipLodBias*/,
+      true                                /*anisotropyEnable*/,
+      16                                  /*maxAnisotropy*/,
+      false                               /*compareEnable*/,
+      vk::CompareOp::eAlways              /*compareOp*/,
+      0.0f                                /*minLod*/,
+      static_cast<float>(1/*mipLevels*/)       /*maxLod*/,
+      vk::BorderColor::eFloatOpaqueBlack  /*borderColor*/,
+      false                               /*unnormalizedCoordinates*/
+   };
+   m_TextureSampler = m_Device.createSampler(ci);
+
    for (const auto& textureFileName : m_Scene.GetTextureFileNames()) {
       int texWidth;
       int texHeight;
@@ -860,6 +883,7 @@ void RayTracer::CreateTextureResources() {
       auto texture = std::make_unique<Vulkan::Image>(
          m_Device,
          m_PhysicalDevice,
+         vk::ImageViewType::e2D,
          texWidth,
          texHeight,
          mipLevels,
@@ -878,25 +902,216 @@ void RayTracer::CreateTextureResources() {
       m_Textures.emplace_back(std::move(texture));
    }
 
-   vk::SamplerCreateInfo ci = {
-      {}                                  /*flags*/,
-      vk::Filter::eLinear                 /*magFilter*/,
-      vk::Filter::eLinear                 /*minFilter*/,
-      vk::SamplerMipmapMode::eLinear      /*mipmapMode*/,
-      vk::SamplerAddressMode::eRepeat     /*addressModeU*/,
-      vk::SamplerAddressMode::eRepeat     /*addressModeV*/,
-      vk::SamplerAddressMode::eRepeat     /*addressModeW*/,
-      0.0f                                /*mipLodBias*/,
-      true                                /*anisotropyEnable*/,
-      16                                  /*maxAnisotropy*/,
-      false                               /*compareEnable*/,
-      vk::CompareOp::eAlways              /*compareOp*/,
-      0.0f                                /*minLod*/,
-      static_cast<float>(1/*mipLevels*/)       /*maxLod*/,
-      vk::BorderColor::eFloatOpaqueBlack  /*borderColor*/,
-      false                               /*unnormalizedCoordinates*/
-   };
-   m_TextureSampler = m_Device.createSampler(ci);
+   if (!m_Scene.GetSkyboxTextureFileName().empty()) {
+      // skybox
+      int texWidth;
+      int texHeight;
+      int texChannels;
+
+      stbi_uc* pixels = reinterpret_cast<stbi_uc*>(stbi_loadf(m_Scene.GetSkyboxTextureFileName().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha));
+      vk::DeviceSize size = static_cast<vk::DeviceSize>(texWidth) * static_cast<vk::DeviceSize>(texHeight) * 16; // 4 bytes per texel component, and there are 4 components
+      uint32_t mipLevels = 1; // static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+      if (!pixels) {
+         ASSERT(false, "ERROR: failed to load texture '{}'", m_Scene.GetSkyboxTextureFileName());
+      }
+
+      Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+      stagingBuffer.CopyFromHost(0, size, pixels);
+
+      stbi_image_free(pixels);
+
+      auto srcTexture = std::make_unique<Vulkan::Image>(
+         m_Device,
+         m_PhysicalDevice,
+         vk::ImageViewType::e2D,
+         texWidth,
+         texHeight,
+         mipLevels,
+         vk::SampleCountFlagBits::e1,
+         vk::Format::eR32G32B32A32Sfloat,
+         vk::ImageTiling::eOptimal,
+         vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+         vk::MemoryPropertyFlagBits::eDeviceLocal
+      );
+      TransitionImageLayout(srcTexture->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, mipLevels);
+      CopyBufferToImage(stagingBuffer.m_Buffer, srcTexture->m_Image, texWidth, texHeight);
+      GenerateMIPMaps(srcTexture->m_Image, vk::Format::eR32G32B32A32Sfloat, texWidth, texHeight, mipLevels);
+      srcTexture->CreateImageView(vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor, mipLevels);
+
+      m_SkyboxTexture = std::make_unique<Vulkan::Image>(
+         m_Device,
+         m_PhysicalDevice,
+         vk::ImageViewType::eCube,
+         texHeight /* assume cubemap width is input texture height*/,
+         texHeight,
+         1,
+         vk::SampleCountFlagBits::e1,
+         vk::Format::eR16G16B16A16Sfloat,
+         vk::ImageTiling::eOptimal,
+         vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
+         vk::MemoryPropertyFlagBits::eDeviceLocal
+      );
+      TransitionImageLayout(m_SkyboxTexture->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, 1);
+      m_SkyboxTexture->CreateImageView(vk::Format::eR16G16B16A16Sfloat, vk::ImageAspectFlagBits::eColor, 1);
+
+      // HACK together compute pipeline for conversion of srcTexture to a cubemap
+
+      // descriptor set layout
+      vk::DescriptorSetLayoutBinding inputTextureLB = {
+         0                                          /*binding*/,
+         vk::DescriptorType::eCombinedImageSampler  /*descriptorType*/,
+         1                                          /*descriptorCount*/,
+         vk::ShaderStageFlagBits::eCompute          /*stageFlags*/,
+         nullptr                                    /*pImmutableSamplers*/
+      };
+
+      vk::DescriptorSetLayoutBinding outputTextureLB = {
+         1                                     /*binding*/,
+         vk::DescriptorType::eStorageImage     /*descriptorType*/,
+         1                                     /*descriptorCount*/,
+         vk::ShaderStageFlagBits::eCompute     /*stageFlags*/,
+         nullptr                               /*pImmutableSamplers*/
+      };
+
+      std::array<vk::DescriptorSetLayoutBinding, 2> layoutBindings = {
+         inputTextureLB,
+         outputTextureLB
+      };
+
+      vk::DescriptorSetLayout descriptorSetLayout = m_Device.createDescriptorSetLayout({
+         {}                                           /*flags*/,
+         static_cast<uint32_t>(layoutBindings.size()) /*bindingCount*/,
+         layoutBindings.data()                        /*pBindings*/
+      });
+
+      // pipeline layout
+      vk::PipelineLayout pipelineLayout = m_Device.createPipelineLayout({
+         {}                     /*flags*/,
+         1                      /*setLayoutCount*/,
+         &descriptorSetLayout   /*pSetLayouts*/,
+         0                      /*pushConstantRangeCount*/,
+         nullptr                /*pPushConstantRanges*/
+      });
+
+      // pipeline
+      vk::ComputePipelineCreateInfo pipelineCI;
+      pipelineCI.layout = pipelineLayout;
+
+      pipelineCI.stage = {
+         vk::PipelineShaderStageCreateFlags {}                                                    /*flags*/,
+         vk::ShaderStageFlagBits::eCompute                                                        /*stage*/,
+         CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Equirectangular2Cubemap.comp.spv"))  /*module*/,
+         "main"                                                                                   /*name*/,
+         nullptr                                                                                  /*pSpecializationInfo*/
+      };
+
+      // .value works around issue in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
+      vk::Pipeline pipelineCompute = m_Device.createComputePipeline({}, pipelineCI).value;
+
+      // Shader modules are no longer needed once the pipeline has been created
+      DestroyShaderModule(pipelineCI.stage.module);
+
+      // descriptor pool
+      std::array<vk::DescriptorPoolSize, 2> typeCounts = {
+         vk::DescriptorPoolSize {
+            vk::DescriptorType::eStorageImage,
+            static_cast<uint32_t>(1)
+         },
+         vk::DescriptorPoolSize {
+            vk::DescriptorType::eCombinedImageSampler,
+            static_cast<uint32_t>(1)
+         }
+      };
+
+      vk::DescriptorPoolCreateInfo descriptorPoolCI = {
+         vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet       /*flags*/,
+         static_cast<uint32_t>(1)                                   /*maxSets*/,
+         static_cast<uint32_t>(typeCounts.size())                   /*poolSizeCount*/,
+         typeCounts.data()                                          /*pPoolSizes*/
+      };
+      vk::DescriptorPool descriptorPool = m_Device.createDescriptorPool(descriptorPoolCI);
+
+      // descriptor sets
+      vk::DescriptorSetAllocateInfo allocInfo = {
+         descriptorPool,
+         static_cast<uint32_t>(1),
+         &descriptorSetLayout
+      };
+      std::vector<vk::DescriptorSet> descriptorSets = m_Device.allocateDescriptorSets(allocInfo);
+
+      vk::DescriptorImageInfo inputTextureImageDescriptor = {
+         m_TextureSampler                          /*sampler*/,
+         srcTexture->m_ImageView                   /*imageView*/,
+         vk::ImageLayout::eShaderReadOnlyOptimal   /*imageLayout*/
+      };
+
+      vk::WriteDescriptorSet inputTextureImageWrite = {
+         descriptorSets[0]                          /*dstSet*/,
+         0                                          /*dstBinding*/,
+         0                                          /*dstArrayElement*/,
+         static_cast<uint32_t>(1)                   /*descriptorCount*/,
+         vk::DescriptorType::eCombinedImageSampler  /*descriptorType*/,
+         &inputTextureImageDescriptor               /*pImageInfo*/,
+         nullptr                                    /*pBufferInfo*/,
+         nullptr                                    /*pTexelBufferView*/
+      };
+
+      vk::DescriptorImageInfo outputTextureImageDescriptor = {
+         nullptr                        /*sampler*/,
+         m_SkyboxTexture->m_ImageView   /*imageView*/,
+         vk::ImageLayout::eGeneral      /*imageLayout*/
+      };
+      vk::WriteDescriptorSet outputTextureImageWrite = {
+         descriptorSets[0]                          /*dstSet*/,
+         1                                          /*dstBinding*/,
+         0                                          /*dstArrayElement*/,
+         1                                          /*descriptorCount*/,
+         vk::DescriptorType::eStorageImage          /*descriptorType*/,
+         &outputTextureImageDescriptor              /*pImageInfo*/,
+         nullptr                                    /*pBufferInfo*/,
+         nullptr                                    /*pTexelBufferView*/
+      };
+
+      std::array<vk::WriteDescriptorSet, 2> writeDescriptorSets = {
+         inputTextureImageWrite,
+         outputTextureImageWrite
+      };
+
+      m_Device.updateDescriptorSets(writeDescriptorSets, nullptr);
+
+      SubmitSingleTimeCommands([texWidth, texHeight, pipelineCompute, pipelineLayout, &descriptorSets] (vk::CommandBuffer cmd) {
+         cmd.bindPipeline(vk::PipelineBindPoint::eCompute, pipelineCompute);
+         cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSets, nullptr);
+         cmd.dispatch(texWidth/32, texHeight/32, 6);
+      });
+
+      m_Device.freeDescriptorSets(descriptorPool, descriptorSets);
+      m_Device.destroy(descriptorPool);
+      m_Device.destroy(pipelineCompute);
+      m_Device.destroy(pipelineLayout);
+      m_Device.destroy(descriptorSetLayout);
+
+      TransitionImageLayout(m_SkyboxTexture->m_Image, vk::ImageLayout::eGeneral, vk::ImageLayout::eShaderReadOnlyOptimal, 1);
+
+   } else {
+      m_SkyboxTexture = std::make_unique<Vulkan::Image>(
+         m_Device,
+         m_PhysicalDevice,
+         vk::ImageViewType::eCube,
+         1,
+         1,
+         1,
+         vk::SampleCountFlagBits::e1,
+         vk::Format::eR16G16B16A16Sfloat,
+         vk::ImageTiling::eOptimal,
+         vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+         vk::MemoryPropertyFlagBits::eDeviceLocal
+      );
+      TransitionImageLayout(m_SkyboxTexture->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, 1);
+      GenerateMIPMaps(m_SkyboxTexture->m_Image, vk::Format::eR16G16B16A16Sfloat, 1, 1, 1);
+      m_SkyboxTexture->CreateImageView(vk::Format::eR16G16B16A16Sfloat, vk::ImageAspectFlagBits::eColor, 1);
+   }
+
 }
 
 
@@ -1005,11 +1220,11 @@ void RayTracer::DestroyIndexBuffer() {
 
 
 void RayTracer::CreateStorageImages() {
-   m_OutputImage = std::make_unique<Vulkan::Image>(m_Device, m_PhysicalDevice, m_Extent.width, m_Extent.height, 1, vk::SampleCountFlagBits::e1, m_Format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   m_OutputImage = std::make_unique<Vulkan::Image>(m_Device, m_PhysicalDevice, vk::ImageViewType::e2D, m_Extent.width, m_Extent.height, 1, vk::SampleCountFlagBits::e1, m_Format, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage, vk::MemoryPropertyFlagBits::eDeviceLocal);
    m_OutputImage->CreateImageView(m_Format, vk::ImageAspectFlagBits::eColor, 1);
    TransitionImageLayout(m_OutputImage->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, 1);
 
-   m_AccumumlationImage = std::make_unique<Vulkan::Image>(m_Device, m_PhysicalDevice, m_Extent.width, m_Extent.height, 1, vk::SampleCountFlagBits::e1, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eStorage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   m_AccumumlationImage = std::make_unique<Vulkan::Image>(m_Device, m_PhysicalDevice, vk::ImageViewType::e2D, m_Extent.width, m_Extent.height, 1, vk::SampleCountFlagBits::e1, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eStorage, vk::MemoryPropertyFlagBits::eDeviceLocal);
    m_AccumumlationImage->CreateImageView(vk::Format::eR32G32B32A32Sfloat, vk::ImageAspectFlagBits::eColor, 1);
    TransitionImageLayout(m_AccumumlationImage->m_Image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, 1);
 }
@@ -1125,6 +1340,14 @@ void RayTracer::CreateDescriptorSetLayout() {
       nullptr                                     /*pImmutableSamplers*/
    };
 
+   vk::DescriptorSetLayoutBinding skyboxLB = {
+      BINDING_SKYBOX                              /*binding*/,
+      vk::DescriptorType::eCombinedImageSampler   /*descriptorType*/,
+      1                                           /*descriptorCount*/,
+      vk::ShaderStageFlagBits::eMissNV            /*stageFlags*/,
+      nullptr                                     /*pImmutableSamplers*/
+   };
+
    std::array<vk::DescriptorSetLayoutBinding, BINDING_NUMBINDINGS> layoutBindings = {
       accelerationStructureLB,
       accumulationImageLB,
@@ -1134,7 +1357,8 @@ void RayTracer::CreateDescriptorSetLayout() {
       indexBufferLB,
       offsetBufferLB,
       materialBufferLB,
-      textureSamplerLB
+      textureSamplerLB,
+      skyboxLB
    };
 
    m_DescriptorSetLayout = m_Device.createDescriptorSetLayout({
@@ -1374,7 +1598,7 @@ void RayTracer::CreateDescriptorPool() {
       },
       vk::DescriptorPoolSize {
          vk::DescriptorType::eCombinedImageSampler,
-         static_cast<uint32_t>(m_Textures.size() * m_SwapChainFrameBuffers.size())
+         static_cast<uint32_t>((m_Textures.size() + 1) * m_SwapChainFrameBuffers.size())
       }
    };
 
@@ -1555,6 +1779,22 @@ void RayTracer::CreateDescriptorSets() {
          nullptr                                      /*pTexelBufferView*/
       };
 
+      vk::DescriptorImageInfo skyboxDescriptor = {
+         m_TextureSampler                          /*sampler*/,
+         m_SkyboxTexture? m_SkyboxTexture->m_ImageView : nullptr         /*imageView*/,
+         vk::ImageLayout::eShaderReadOnlyOptimal   /*imageLayout*/
+      };
+      vk::WriteDescriptorSet skyboxWrite = {
+         m_DescriptorSets[i]                          /*dstSet*/,
+         BINDING_SKYBOX                               /*dstBinding*/,
+         0                                            /*dstArrayElement*/,
+         1                                            /*descriptorCount*/,
+         vk::DescriptorType::eCombinedImageSampler    /*descriptorType*/,
+         &skyboxDescriptor                            /*pImageInfo*/,
+         nullptr                                      /*pBufferInfo*/,
+         nullptr                                      /*pTexelBufferView*/
+      };
+
       std::array<vk::WriteDescriptorSet, BINDING_NUMBINDINGS> writeDescriptorSets = {
          accelerationStructureWrite,
          accumulationImageWrite,
@@ -1564,7 +1804,8 @@ void RayTracer::CreateDescriptorSets() {
          indexBufferWrite,
          offsetBufferWrite,
          materialBufferWrite,
-         textureSamplersWrite
+         textureSamplersWrite,
+         skyboxWrite
       };
 
       m_Device.updateDescriptorSets(writeDescriptorSets, nullptr);
@@ -1722,6 +1963,7 @@ void RayTracer::RenderFrame() {
       glm::inverse(projection),
       glm::vec4{m_Scene.GetHorizonColor(), 0.0f},
       glm::vec4{m_Scene.GetZenithColor(), 0.0f},
+      m_Scene.GetSkyboxTextureFileName().empty()? 0u : 1u,
       m_AccumulatedImageCount
    };
 

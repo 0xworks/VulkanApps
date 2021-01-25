@@ -20,6 +20,16 @@ void Scene::SetZenithColor(const glm::vec3& color) {
 }
 
 
+void Scene::SetSkybox(const std::string& filename) {
+   m_SkyboxTextureName = filename;
+}
+
+
+const std::string& Scene::GetSkyboxTextureFileName() const {
+   return m_SkyboxTextureName;
+}
+
+
 bool Scene::GetAccumulateFrames() const {
    return m_AccumulateFrames;
 }

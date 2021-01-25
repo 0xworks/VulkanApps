@@ -51,6 +51,7 @@ set(
    shader_src_files
    "Assets/Shaders/Box.rchit"
    "Assets/Shaders/Box.rint"
+   "Assets/Shaders/Equirectangular2Cubemap.comp"
    "Assets/Shaders/RayTrace.rgen"
    "Assets/Shaders/RayTrace.rmiss"
    "Assets/Shaders/Sphere.rchit"
@@ -74,8 +75,9 @@ set(
 
 set(
    texture_files
-   "Assets/Textures/earthmap.jpg"
    "Assets/Textures/Backdrop.png"
+   "Assets/Textures/birchwood_4k.hdr"
+   "Assets/Textures/earthmap.jpg"
 )
 
 set_source_files_properties(${shader_header_files} PROPERTIES HEADER_FILE_ONLY TRUE)

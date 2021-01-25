@@ -4,16 +4,59 @@
 
 namespace Vulkan {
 
-Image::Image(vk::Device device, const vk::PhysicalDevice physicalDevice, const uint32_t width, const uint32_t height, const uint32_t mipLevels, vk::SampleCountFlagBits numSamples, const vk::Format format, const vk::ImageTiling tiling, const vk::ImageUsageFlags usage, const vk::MemoryPropertyFlags properties)
+Image::Image(vk::Device device, const vk::PhysicalDevice physicalDevice, const vk::ImageViewType type, const uint32_t width, const uint32_t height, const uint32_t mipLevels, vk::SampleCountFlagBits numSamples, const vk::Format format, const vk::ImageTiling tiling, const vk::ImageUsageFlags usage, const vk::MemoryPropertyFlags properties)
 : m_Device(device)
+, m_Type(type)
 {
+   vk::ImageType imageType = vk::ImageType::e2D;
+   switch (type) {
+      case vk::ImageViewType::e1D:
+      case vk::ImageViewType::e1DArray:
+         imageType = vk::ImageType::e1D;
+         break;
+      case vk::ImageViewType::e2D:
+      case vk::ImageViewType::e2DArray:
+      case vk::ImageViewType::eCube:
+      case vk::ImageViewType::eCubeArray:
+         imageType = vk::ImageType::e2D;
+         break;
+      case vk::ImageViewType::e3D:
+         imageType = vk::ImageType::e3D;
+         break;
+   }
+
+   vk::ImageCreateFlags flags = {};
+   switch (type) {
+      case vk::ImageViewType::e1D:
+      case vk::ImageViewType::e1DArray:
+      case vk::ImageViewType::e2D:
+      case vk::ImageViewType::e3D:
+         flags = {};
+         break;
+      case vk::ImageViewType::e2DArray:
+         flags = vk::ImageCreateFlagBits::e2DArrayCompatible;
+         break;
+      case vk::ImageViewType::eCube:
+      case vk::ImageViewType::eCubeArray:
+         flags = vk::ImageCreateFlagBits::eCubeCompatible;
+         break;
+   }
+
+   uint32_t arrayLayers = 1u;
+   switch (type) {
+      case vk::ImageViewType::eCube:
+      case vk::ImageViewType::eCubeArray:
+         arrayLayers = 6;
+         break;
+   }
+
    m_Image = m_Device.createImage({
-      {}                               /*flags*/,
-      vk::ImageType::e2D               /*imageType*/,
+      flags                            /*flags*/,
+      imageType                        /*imageType*/,
       format                           /*format*/,
       {width, height, 1}               /*extent*/,
       mipLevels                        /*mipLevels*/,
-      1                                /*arrayLayers*/,
+      arrayLayers                      /*arrayLayers*/,
       numSamples                       /*samples*/,
       tiling                           /*tiling*/,
       usage                            /*usage*/,
@@ -34,6 +77,7 @@ Image::Image(vk::Device device, const vk::PhysicalDevice physicalDevice, const u
 
 Image::Image(vk::Device device, const vk::Image& image)
 : m_Device(device)
+, m_Type(vk::ImageViewType::e2D)
 , m_Image(image)
 {}
 
@@ -83,7 +127,7 @@ void Image::CreateImageView(const vk::Format format, const vk::ImageAspectFlags 
    m_ImageView = m_Device.createImageView({
       {}                                 /*flags*/,
       m_Image                            /*image*/,
-      vk::ImageViewType::e2D             /*viewType*/,
+      m_Type                             /*viewType*/,
       format                             /*format*/,
       {}                                 /*components*/,
       {
@@ -91,7 +135,7 @@ void Image::CreateImageView(const vk::Format format, const vk::ImageAspectFlags 
          0                                  /*baseMipLevel*/,
          mipLevels                          /*levelCount*/,
          0                                  /*baseArrayLevel*/,
-         1                                  /*layerCount*/
+         VK_REMAINING_ARRAY_LAYERS          /*layerCount*/
       }                                  /*subresourceRange*/
    });
 }
