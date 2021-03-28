@@ -1,6 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
-#extension GL_NV_ray_tracing : require
+#extension GL_EXT_ray_tracing : require
 
 #include "Bindings.glsl"
 #include "Offset.glsl"
@@ -12,8 +12,8 @@ layout(binding = BINDING_VERTEXBUFFER) readonly buffer VertexArray { float verti
 layout(binding = BINDING_INDEXBUFFER) readonly buffer IndexArray { uint indices[]; };
 layout(binding = BINDING_OFFSETBUFFER) readonly buffer OffsetArray { Offset offsets[]; };
 
-hitAttributeNV vec2 hit;
-rayPayloadInNV RayPayload ray;
+hitAttributeEXT vec2 hit;
+rayPayloadInEXT RayPayload ray;
 
 Vertex UnpackVertex(uint index) {
    const uint vertexSize = 8;
@@ -30,7 +30,7 @@ Vertex UnpackVertex(uint index) {
 
 void main() {
    ivec3 triangle = ivec3(gl_PrimitiveID * 3 + 0, gl_PrimitiveID * 3 + 1, gl_PrimitiveID * 3 + 2);
-   Offset offset = offsets[gl_InstanceCustomIndexNV];
+   Offset offset = offsets[gl_InstanceCustomIndexEXT];
    const Vertex v0 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.x]);
    const Vertex v1 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.y]);
    const Vertex v2 = UnpackVertex(offset.vertexOffset + indices[offset.indexOffset + triangle.z]);
@@ -42,8 +42,8 @@ void main() {
    const vec2 texCoord = v0.uv * barycentric.x + v1.uv * barycentric.y + v2.uv * barycentric.z;
 
    // Transform hitPoint and normal to world coords for "scatter" function (texCoords should not be transformed)
-   vec3 hitPointW = gl_ObjectToWorldNV * vec4(hitPoint, 1);
-   vec3 normalW = normalize(gl_ObjectToWorldNV * vec4(normal, 0));
+   vec3 hitPointW = gl_ObjectToWorldEXT * vec4(hitPoint, 1);
+   vec3 normalW = normalize(gl_ObjectToWorldEXT * vec4(normal, 0));
 
-   ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexNV, ray.randomSeed);
+   ray = Scatter(hitPointW, normalW, texCoord, gl_InstanceCustomIndexEXT, ray.randomSeed);
 }

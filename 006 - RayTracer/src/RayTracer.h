@@ -13,12 +13,13 @@ public:
    RayTracer(int argc, const char* argv[]);
    ~RayTracer();
 
+protected:
+   virtual void Init() override;
+
    virtual std::vector<const char*> GetRequiredInstanceExtensions() override;
    virtual std::vector<const char*> GetRequiredDeviceExtensions() override;
    virtual vk::PhysicalDeviceFeatures GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures) override;
    virtual void* GetRequiredPhysicalDeviceFeaturesEXT() override;
-
-   virtual void Init() override;
 
    void CreateScene();
 
@@ -100,7 +101,7 @@ private:
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
    uint32_t m_AccumulatedImageCount = 0;
    std::vector<Vulkan::Buffer> m_UniformBuffers;
-   vk::PhysicalDeviceRayTracingPropertiesNV m_RayTracingProperties;
+   vk::PhysicalDeviceRayTracingPipelinePropertiesKHR m_RayTracingPipelineProperties;
    vk::DescriptorSetLayout m_DescriptorSetLayout;
    vk::PipelineLayout m_PipelineLayout;
    vk::Pipeline m_Pipeline;

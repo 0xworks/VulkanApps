@@ -27,13 +27,20 @@ struct ApplicationSettings {
 };
 
 
+struct GeometryGroup {
+   void AddAABBs(const vk::DeviceOrHostAddressConstKHR deviceAddress, const vk::DeviceSize offset, const vk::DeviceSize stride, const size_t count);
+   void AddTrianglesIndexed(const vk::DeviceOrHostAddressConstKHR vertexData, const vk::DeviceSize vertexOffset, const vk::DeviceSize vertexStride, const size_t vertexCount, const vk::DeviceOrHostAddressConstKHR indexData, const vk::DeviceSize indexOffset, const size_t indexCount, const size_t firstVertex, const size_t maxVertex);
+   void AddInstances(const vk::DeviceOrHostAddressConstKHR data, const vk::DeviceSize offset, const vk::Bool32 arrayOfPointers, const size_t count);
+
+   std::vector<vk::AccelerationStructureGeometryKHR> m_Geometries;
+   std::vector<vk::AccelerationStructureBuildRangeInfoKHR> m_BuildRanges;
+};
+
+
 struct AccelerationStructure {
-   AccelerationStructure() = default;
-   AccelerationStructure(vk::AccelerationStructureInfoNV accelerationStructureInfo) : m_AccelerationStructureInfo(accelerationStructureInfo) {}
-   vk::AccelerationStructureInfoNV m_AccelerationStructureInfo;
-   vk::AccelerationStructureNV m_AccelerationStructure;
-   vk::DeviceMemory m_Memory;
-   uint64_t m_Handle = 0;
+   vk::AccelerationStructureKHR m_AccelerationStructure;
+   std::unique_ptr<Buffer> m_Buffer;
+   uint64_t m_DeviceAddress;
 };
 
 
@@ -171,13 +178,14 @@ protected:
    ///////////////////////////////
    // Ray tracing stuff
 
-   void CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const std::vector<vk::GeometryNV>> geometryGroups);
+   void BuildAccelerationStructure(AccelerationStructure& accelerationStructure, const vk::AccelerationStructureTypeKHR type, const GeometryGroup& geometryGroup);
+
+   void CreateBottomLevelAccelerationStructures(vk::ArrayProxy<GeometryGroup> geometryGroups);
    void DestroyBottomLevelAccelerationStructures();
 
-   void CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances);
+   void CreateTopLevelAccelerationStructure(GeometryGroup geometryGroup);
    void DestroyTopLevelAccelerationStructure();
 
-   void BuildAccelerationStructures(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances);
    //
    //////////////////////////////
 

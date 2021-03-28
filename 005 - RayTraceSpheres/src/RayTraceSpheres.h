@@ -22,8 +22,10 @@ public:
    RayTraceSpheres(int argc, const char* argv[]);
    ~RayTraceSpheres();
 
-   std::vector<const char*> GetRequiredInstanceExtensions() override;
-   std::vector<const char*> GetRequiredDeviceExtensions() override;
+   virtual std::vector<const char*> GetRequiredInstanceExtensions() override;
+   virtual std::vector<const char*> GetRequiredDeviceExtensions() override;
+   virtual vk::PhysicalDeviceFeatures GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures) override;
+   virtual void* GetRequiredPhysicalDeviceFeaturesEXT() override;
 
    virtual void Init() override;
 
@@ -77,7 +79,7 @@ private:
    std::unique_ptr<Vulkan::Image> m_AccumumlationImage;
    UniformBufferObject m_UniformBufferObject;
    std::vector<Vulkan::Buffer> m_UniformBuffers;
-   vk::PhysicalDeviceRayTracingPropertiesNV m_RayTracingProperties;
+   vk::PhysicalDeviceRayTracingPipelinePropertiesKHR m_RayTracingProperties;
    vk::DescriptorSetLayout m_DescriptorSetLayout;
    vk::PipelineLayout m_PipelineLayout;
    vk::Pipeline m_Pipeline;

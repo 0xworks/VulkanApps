@@ -58,11 +58,19 @@ Model::Model(const char* filename, const uint32_t shaderHitGroupIndex)
 
 
 const std::vector<Vertex>& Model::GetVertices() const {
+   static std::vector<Vertex> empty;
+   if (IsProcedural()) {
+      return empty;
+   }
    return m_Vertices;
 }
 
 
 const std::vector<uint32_t>& Model::GetIndices() const {
+   static std::vector<uint32_t> empty;
+   if (IsProcedural()) {
+      return empty;
+   }
    return m_Indices;
 }
 

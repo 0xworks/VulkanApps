@@ -1,6 +1,7 @@
 #include "RayTraceSpheres.h"
 
 #include "Bindings.h"
+#include "Core.h"
 #include "GeometryInstance.h"
 #include "Material.h"
 #include "Utility.h"
@@ -83,7 +84,53 @@ std::vector<const char*> RayTraceSpheres::GetRequiredInstanceExtensions() {
 
 
 std::vector<const char*> RayTraceSpheres::GetRequiredDeviceExtensions() {
-   return {VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, VK_NV_RAY_TRACING_EXTENSION_NAME, VK_KHR_MAINTENANCE3_EXTENSION_NAME};
+   return {
+      VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+      VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+      VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME
+   };
+}
+
+
+vk::PhysicalDeviceFeatures RayTraceSpheres::GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures availableFeatures) {
+   vk::PhysicalDeviceFeatures features;
+   if (availableFeatures.samplerAnisotropy) {
+      features.setSamplerAnisotropy(true);
+   } else {
+      ASSERT(false, "Device does not support sampler anisotropy")
+   }
+   if (availableFeatures.fillModeNonSolid) {
+      features.setFillModeNonSolid(true);
+   } else {
+      ASSERT(false, "Device does not support fill mode non solid")
+   }
+   if (availableFeatures.shaderInt64) {
+      features.setShaderInt64(true);
+   } else {
+      ASSERT(false, "Device does not support shader int64")
+   }
+   return features;
+}
+
+
+void* RayTraceSpheres::GetRequiredPhysicalDeviceFeaturesEXT() {
+
+   static vk::PhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures;
+   bufferDeviceAddressFeatures.bufferDeviceAddress = true;
+
+   static vk::PhysicalDeviceDescriptorIndexingFeatures indexingFeatures;
+   indexingFeatures.runtimeDescriptorArray = true;
+   indexingFeatures.pNext = &bufferDeviceAddressFeatures;
+
+   static vk::PhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures;
+   accelerationStructureFeatures.accelerationStructure = true;
+   accelerationStructureFeatures.pNext = &indexingFeatures;
+
+   static vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingFeatures;
+   rayTracingFeatures.rayTracingPipeline = true;
+   rayTracingFeatures.pNext = &accelerationStructureFeatures;
+
+   return &rayTracingFeatures;
 }
 
 
@@ -102,8 +149,8 @@ void RayTraceSpheres::Init() {
 
    m_Direction = glm::normalize(m_Direction);
 
-   auto properties = m_PhysicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPropertiesNV>();
-   m_RayTracingProperties = properties.get<vk::PhysicalDeviceRayTracingPropertiesNV>();
+   auto properties = m_PhysicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+   m_RayTracingProperties = properties.get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
 
    // Check requested push constant size against hardware limit
    // Specs require 128 bytes, so if the device complies our push constant buffer should always fit into memory
@@ -174,7 +221,7 @@ void RayTraceSpheres::CreateScene() {
       Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
       stagingBuffer.CopyFromHost(0, size, vertices.data());
 
-      m_VertexBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+      m_VertexBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eDeviceLocal);
       CopyBuffer(stagingBuffer.m_Buffer, m_VertexBuffer->m_Buffer, 0, 0, size);
    }
 
@@ -192,7 +239,7 @@ void RayTraceSpheres::CreateScene() {
       };
       stagingBuffer.CopyFromHost(0, size, indices.data());
 
-      m_IndexBuffer = std::make_unique<Vulkan::IndexBuffer>(m_Device, m_PhysicalDevice, size, count, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+      m_IndexBuffer = std::make_unique<Vulkan::IndexBuffer>(m_Device, m_PhysicalDevice, size, count, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eDeviceLocal);
       CopyBuffer(stagingBuffer.m_Buffer, m_IndexBuffer->m_Buffer, 0, 0, size);
    }
 
@@ -217,47 +264,19 @@ void RayTraceSpheres::CreateScene() {
 
    // Could create multiple geometries here (on same vertex/index buffer) by specifying the offsets and counts.
    // You can also instantiate the same geometry more than once (using the transformData and transformOffset)
-   std::vector<std::vector<vk::GeometryNV>> geometryGroups = {
-      {
-         vk::GeometryNV {
-            vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
-            {
-               {
-                  m_VertexBuffer->m_Buffer                                  /*vertexData*/,
-                  0                                                         /*vertexOffset*/,
-                  static_cast<uint32_t>(vertices.size())                    /*vertexCount*/,
-                  static_cast<vk::DeviceSize>(sizeof(Vertex))               /*vertexStride*/,
-                  vk::Format::eR32G32B32Sfloat                              /*vertexFormat*/,
-                  m_IndexBuffer->m_Buffer                                   /*indexData*/,
-                  0                                                         /*indexOffset*/,
-                  m_IndexBuffer->m_Count                                    /*indexCount*/,
-                  vk::IndexType::eUint32                                    /*indexType*/,
-                  m_TransformBuffer ? m_TransformBuffer->m_Buffer : nullptr  /*transformData*/,
-                  0                                                         /*transformOffset*/
-               }                                                         /*triangles*/,
-               {
-                  nullptr                                                   /*aabbData*/,
-                  0                                                         /*numAABBs*/,
-                  0                                                         /*stride*/,
-                  0                                                         /*offset*/
-               }                                                         /*aabbs*/
-            }                                                            /*geometry*/,
-            vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
-         }
-      }
-   };
+   Vulkan::GeometryGroup geometryGroup;
+   geometryGroup.AddTrianglesIndexed(m_VertexBuffer->GetBufferDeviceAddress(), 0, sizeof(Vertex), vertices.size(), m_IndexBuffer->GetBufferDeviceAddress(), 0, indices.size(), 0, vertices.size());
 
-   CreateBottomLevelAccelerationStructures(geometryGroups);
-
-   std::vector<Vulkan::GeometryInstance> geometryInstances;
-   std::vector<Material> materials;
+   CreateBottomLevelAccelerationStructures(geometryGroup);
 
    // create random scene
-   uint i = 0;
+   uint32_t i = 0;
+   std::vector<vk::AccelerationStructureInstanceKHR> instances;
+   std::vector<Material> materials;
 
    // large background sphere
-   geometryInstances.emplace_back(
-      glm::mat3x4 {
+   instances.emplace_back(
+      VkTransformMatrixKHR {
          1000.0f, 0.0f, 0.0f, 0.0f,
          0.0f, 1000.0f, 0.0f, -1000.0f,
          0.0f, 0.0f, 1000.0f, -0.0f,
@@ -265,8 +284,8 @@ void RayTraceSpheres::CreateScene() {
       i++                            /*instance index*/,
       0xff                           /*visibility mask*/,
       0                              /*hit group index*/,
-      static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable),
-      m_BLAS.back().m_Handle
+      vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
+      m_BLAS.back().m_DeviceAddress
    );
    materials.emplace_back(Lambertian({0.5, 0.5, 0.5}));
 
@@ -275,8 +294,8 @@ void RayTraceSpheres::CreateScene() {
          float choose_mat = random_float();
          vec3 center(a + 0.9f * random_float(), 0.2f, b + 0.9f * random_float());
          if ((center - vec3(4.0f, 0.2f, 0.0f)).length() > 0.9f) {
-            geometryInstances.emplace_back(
-               glm::mat3x4 {
+            instances.emplace_back(
+               VkTransformMatrixKHR{
                   0.2f, 0.0f, 0.0f, center.x,
                   0.0f, 0.2f, 0.0f, center.y,
                   0.0f, 0.0f, 0.2f, center.z,
@@ -284,8 +303,8 @@ void RayTraceSpheres::CreateScene() {
                i++                            /*instance index*/,
                0xff                           /*visibility mask*/,
                0                              /*hit group index*/,
-               static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable),
-               m_BLAS.back().m_Handle
+               vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
+               m_BLAS.back().m_DeviceAddress
             );
             if (choose_mat < 0.8) {
                // diffuse
@@ -307,8 +326,8 @@ void RayTraceSpheres::CreateScene() {
    }
 
    // the three main spheres...
-   geometryInstances.emplace_back(
-      glm::mat3x4 {
+   instances.emplace_back(
+      VkTransformMatrixKHR{
          1.0f, 0.0f, 0.0f, 0.0f,
          0.0f, 1.0f, 0.0f, 1.0f,
          0.0f, 0.0f, 1.0f, 0.0f,
@@ -316,13 +335,13 @@ void RayTraceSpheres::CreateScene() {
       i++                            /*instance index*/,
       0xff                           /*visibility mask*/,
       0                              /*hit group index*/,
-      static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable),
-      m_BLAS.back().m_Handle
+      vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
+      m_BLAS.back().m_DeviceAddress
    );
    materials.emplace_back(Dielectric(1.5f));
 
-   geometryInstances.emplace_back(
-      glm::mat3x4 {
+   instances.emplace_back(
+      VkTransformMatrixKHR{
          1.0f, 0.0f, 0.0f, -4.0f,
          0.0f, 1.0f, 0.0f, 1.0f,
          0.0f, 0.0f, 1.0f, 0.0f,
@@ -330,13 +349,13 @@ void RayTraceSpheres::CreateScene() {
       i++                            /*instance index*/,
       0xff                           /*visibility mask*/,
       0                              /*hit group index*/,
-      static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable),
-      m_BLAS.back().m_Handle
+      vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
+      m_BLAS.back().m_DeviceAddress
    );
    materials.emplace_back(Lambertian({0.4, 0.2, 0.1}));
 
-   geometryInstances.emplace_back(
-      glm::mat3x4 {
+   instances.emplace_back(
+      VkTransformMatrixKHR{
          1.0f, 0.0f, 0.0f, 4.0f,
          0.0f, 1.0f, 0.0f, 1.0f,
          0.0f, 0.0f, 1.0f, 0.0f,
@@ -344,10 +363,20 @@ void RayTraceSpheres::CreateScene() {
       4                              /*instance index*/,
       0xff                           /*visibility mask*/,
       0                              /*hit group index*/,
-      static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable),
-      m_BLAS.back().m_Handle
+      vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
+      m_BLAS.back().m_DeviceAddress
    );
    materials.emplace_back(Metallic({0.7, 0.6, 0.5}, 0.0));
+
+   // Create Instances buffer
+   Vulkan::Buffer instanceBuffer{
+      m_Device,
+      m_PhysicalDevice,
+      sizeof(vk::AccelerationStructureInstanceKHR) * instances.size(),
+      vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+   };
+   instanceBuffer.CopyFromHost(0, VK_WHOLE_SIZE, instances.data());
 
    // Create Materials buffer
    {
@@ -360,12 +389,10 @@ void RayTraceSpheres::CreateScene() {
       CopyBuffer(stagingBuffer.m_Buffer, m_MaterialBuffer->m_Buffer, 0, 0, size);
    }
 
-   // Each geometry instance instantiates all of the geometries that are in the BLAS that the instance refers to.
-   // If you want to instantiate geometries independently of each other, then they need to be in different BLASs
-   // Apparently, a general rule is that the fewer BLASs the better. 
-   CreateTopLevelAccelerationStructure(geometryInstances);
+   Vulkan::GeometryGroup group;
+   group.AddInstances(instanceBuffer.GetBufferDeviceAddress(), 0, false, instances.size());
+   CreateTopLevelAccelerationStructure(group);
 
-   BuildAccelerationStructures(geometryInstances);
 }
 
 
@@ -430,18 +457,18 @@ void RayTraceSpheres::CreateDescriptorSetLayout() {
    // So every shader binding should map to one descriptor set layout binding
 
    vk::DescriptorSetLayoutBinding accelerationStructureLB = {
-      BINDING_TLAS                                                                 /*binding*/,
-      vk::DescriptorType::eAccelerationStructureNV                                 /*descriptorType*/,
-      1                                                                            /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV  /*stageFlags*/,
-      nullptr                                                                      /*pImmutableSamplers*/
+      BINDING_TLAS                                                                  /*binding*/,
+      vk::DescriptorType::eAccelerationStructureKHR                                 /*descriptorType*/,
+      1                                                                             /*descriptorCount*/,
+      vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eClosestHitKHR /*stageFlags*/,
+      nullptr                                                                       /*pImmutableSamplers*/
    };
 
    vk::DescriptorSetLayoutBinding accumulationImageLB = {
       BINDING_ACCUMULATIONIMAGE             /*binding*/,
       vk::DescriptorType::eStorageImage     /*descriptorType*/,
       1                                     /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV    /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR   /*stageFlags*/,
       nullptr                               /*pImmutableSamplers*/
    };
 
@@ -449,23 +476,23 @@ void RayTraceSpheres::CreateDescriptorSetLayout() {
       BINDING_OUTPUTIMAGE                   /*binding*/,
       vk::DescriptorType::eStorageImage     /*descriptorType*/,
       1                                     /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV    /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR   /*stageFlags*/,
       nullptr                               /*pImmutableSamplers*/
    };
 
    vk::DescriptorSetLayoutBinding uniformBufferLB = {
-      BINDING_UNIFORMBUFFER                                                                                           /*binding*/,
-      vk::DescriptorType::eUniformBuffer                                                                              /*descriptorType*/,
-      1                                                                                                               /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV  /*stageFlags*/,
-      nullptr                                                                                                         /*pImmutableSamplers*/
+      BINDING_UNIFORMBUFFER                                                                                              /*binding*/,
+      vk::DescriptorType::eUniformBuffer                                                                                 /*descriptorType*/,
+      1                                                                                                                  /*descriptorCount*/,
+      vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eMissKHR  /*stageFlags*/,
+      nullptr                                                                                                            /*pImmutableSamplers*/
    };
 
    vk::DescriptorSetLayoutBinding vertexBufferLB = {
       BINDING_VERTEXBUFFER                      /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      {vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
+      {vk::ShaderStageFlagBits::eClosestHitKHR} /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
    
@@ -473,7 +500,7 @@ void RayTraceSpheres::CreateDescriptorSetLayout() {
       BINDING_INDEXBUFFER                       /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      {vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
+      {vk::ShaderStageFlagBits::eClosestHitKHR} /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
 
@@ -481,7 +508,7 @@ void RayTraceSpheres::CreateDescriptorSetLayout() {
       BINDING_MATERIALBUFFER                    /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      {vk::ShaderStageFlagBits::eClosestHitNV}  /*stageFlags*/,
+      {vk::ShaderStageFlagBits::eClosestHitKHR} /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
 
@@ -516,7 +543,7 @@ void RayTraceSpheres::CreatePipelineLayout() {
    // In a more complex scenario you would have different pipeline layouts for different descriptor set layouts that could be reused
 
    vk::PushConstantRange pushConstantRange = {
-      vk::ShaderStageFlagBits::eRaygenNV            /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR           /*stageFlags*/,
       0                                             /*offset*/,
       static_cast<uint32_t>(sizeof(Constants))      /*size*/
    };
@@ -571,65 +598,68 @@ void RayTraceSpheres::CreatePipeline() {
    std::array<vk::PipelineShaderStageCreateInfo, 3> shaderStages = {
       vk::PipelineShaderStageCreateInfo {
          {}                                  /*flags*/,
-         vk::ShaderStageFlagBits::eRaygenNV  /*stage*/,
+         vk::ShaderStageFlagBits::eRaygenKHR  /*stage*/,
          CreateShaderModule(rayGenCode)      /*module*/,
          "main"                              /*name*/,
          &specializationInfo                 /*pSpecializationInfo*/
       },
       vk::PipelineShaderStageCreateInfo {
          {}                                  /*flags*/,
-         vk::ShaderStageFlagBits::eMissNV    /*stage*/,
+         vk::ShaderStageFlagBits::eMissKHR    /*stage*/,
          CreateShaderModule(missCode)        /*module*/,
          "main"                              /*name*/,
          nullptr                             /*pSpecializationInfo*/
       },
       vk::PipelineShaderStageCreateInfo {
          {}                                        /*flags*/,
-         vk::ShaderStageFlagBits::eClosestHitNV    /*stage*/,
+         vk::ShaderStageFlagBits::eClosestHitKHR   /*stage*/,
          CreateShaderModule(closestHitCode)        /*module*/,
          "main"                                    /*name*/,
          nullptr                                   /*pSpecializationInfo*/
       }
    };
 
-   std::array<vk::RayTracingShaderGroupCreateInfoNV, 3> groups = {
-      vk::RayTracingShaderGroupCreateInfoNV {
-         vk::RayTracingShaderGroupTypeNV::eGeneral /*type*/,
+   std::array<vk::RayTracingShaderGroupCreateInfoKHR, 3> groups = {
+      vk::RayTracingShaderGroupCreateInfoKHR {
+         vk::RayTracingShaderGroupTypeKHR::eGeneral /*type*/,
          0                                         /*generalShader*/,
-         VK_SHADER_UNUSED_NV                       /*closestHitShader*/,
-         VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-         VK_SHADER_UNUSED_NV                       /*intersectionShader*/
+         VK_SHADER_UNUSED_KHR                      /*closestHitShader*/,
+         VK_SHADER_UNUSED_KHR                      /*anyHitShader*/,
+         VK_SHADER_UNUSED_KHR                      /*intersectionShader*/
       },
-      vk::RayTracingShaderGroupCreateInfoNV {
-         vk::RayTracingShaderGroupTypeNV::eGeneral /*type*/,
+      vk::RayTracingShaderGroupCreateInfoKHR {
+         vk::RayTracingShaderGroupTypeKHR::eGeneral /*type*/,
          1                                         /*generalShader*/,
-         VK_SHADER_UNUSED_NV                       /*closestHitShader*/,
-         VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-         VK_SHADER_UNUSED_NV                       /*intersectionShader*/
+         VK_SHADER_UNUSED_KHR                      /*closestHitShader*/,
+         VK_SHADER_UNUSED_KHR                      /*anyHitShader*/,
+         VK_SHADER_UNUSED_KHR                      /*intersectionShader*/
       },
-      vk::RayTracingShaderGroupCreateInfoNV {
-         vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup /*type*/,
-         VK_SHADER_UNUSED_NV                       /*generalShader*/,
+      vk::RayTracingShaderGroupCreateInfoKHR {
+         vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup /*type*/,
+         VK_SHADER_UNUSED_KHR                      /*generalShader*/,
          2                                         /*closestHitShader*/,
-         VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-         VK_SHADER_UNUSED_NV                       /*intersectionShader*/
+         VK_SHADER_UNUSED_KHR                      /*anyHitShader*/,
+         VK_SHADER_UNUSED_KHR                      /*intersectionShader*/
       }
    };
 
-   vk::RayTracingPipelineCreateInfoNV pipelineCI = {
+   vk::RayTracingPipelineCreateInfoKHR pipelineCI = {
       {}                                         /*flags*/,
       static_cast<uint32_t>(shaderStages.size()) /*stageCount*/,
       shaderStages.data()                        /*pStages*/,
       static_cast<uint32_t>(groups.size())       /*groupCount*/,
       groups.data()                              /*pGroups*/,
-      1                                          /*maxRecursionDepth*/,
+      1                                          /*maxPipelineRayRecursionDepth*/,
+      nullptr                                    /*pLibraryInfo*/,
+      nullptr                                    /*pLibraryInterface*/,
+      nullptr                                    /*pDynamicState*/,
       m_PipelineLayout                           /*layout*/,
       nullptr                                    /*basePipelineHandle*/,
       0                                          /*basePipelineIndex*/
    };
 
-   // .value works around bug in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
-   m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI).value;
+   // .value works around issue with implicit cast of ResultValue<T> (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/680)
+   m_Pipeline = m_Device.createRayTracingPipelineKHR(nullptr, m_PipelineCache, pipelineCI).value;
 
    // Shader modules are no longer needed once the graphics pipeline has been createdvk
    for (auto& shaderStage : shaderStages) {
@@ -647,14 +677,23 @@ void RayTraceSpheres::DestroyPipeline() {
 
 void RayTraceSpheres::CreateShaderBindingTable() {
    // Create buffer for the shader binding table
-   const uint32_t sbtSize = m_RayTracingProperties.shaderGroupHandleSize * 3;
+   // Note that regardless of the shaderGroupHandleSize, the entries in the shader binding table must be aligned on multiples of m_RayTracingProperties.shaderGroupBaseAlignment
+   const uint32_t handleSize = m_RayTracingProperties.shaderGroupHandleSize;
+   const uint32_t handleSizeAligned = Vulkan::AlignedSize(m_RayTracingProperties.shaderGroupHandleSize, m_RayTracingProperties.shaderGroupBaseAlignment);
+   const vk::DeviceSize tableSize = static_cast<vk::DeviceSize>(handleSizeAligned) * 3;
+   const vk::DeviceSize handlesSize = static_cast<vk::DeviceSize>(handleSize) * 3;
 
-   m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, sbtSize, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
+   std::vector<uint8_t> shaderHandleStorage = m_Device.getRayTracingShaderGroupHandlesKHR<uint8_t>(m_Pipeline, 0, 3, handlesSize);
 
-   std::vector<uint8_t> shaderHandleStorage;
-   shaderHandleStorage.resize(sbtSize);
-   m_Device.getRayTracingShaderGroupHandlesNV<uint8_t>(m_Pipeline, 0, 3, shaderHandleStorage);
-   m_ShaderBindingTable->CopyFromHost(0, sbtSize, shaderHandleStorage.data());
+   std::vector<uint8_t> shaderBindingTable;
+   shaderBindingTable.resize(tableSize);
+
+   for (uint32_t i = 0; i < 3; ++i) {
+      std::memcpy(shaderBindingTable.data() + (i * static_cast<size_t>(handleSizeAligned)), shaderHandleStorage.data() + (i * static_cast<size_t>(handleSize)), static_cast<size_t>(handleSize));
+   }
+
+   m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, tableSize, vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eHostVisible);
+   m_ShaderBindingTable->CopyFromHost(0, tableSize, shaderBindingTable.data());
 }
 
 
@@ -666,7 +705,7 @@ void RayTraceSpheres::DestroyShaderBindingTable() {
 void RayTraceSpheres::CreateDescriptorPool() {
    std::array<vk::DescriptorPoolSize, 4> typeCounts = {
       vk::DescriptorPoolSize {
-         vk::DescriptorType::eAccelerationStructureNV,
+         vk::DescriptorType::eAccelerationStructureKHR,
          static_cast<uint32_t>(m_SwapChainFrameBuffers.size())
       },
       vk::DescriptorPoolSize {
@@ -715,20 +754,20 @@ void RayTraceSpheres::CreateDescriptorSets() {
    // descriptor set matching that binding point
 
    for (uint32_t i = 0; i < m_SwapChainFrameBuffers.size(); ++i) {
-      vk::WriteDescriptorSetAccelerationStructureNV descriptorAccelerationStructureInfo = {
+      vk::WriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {
          1                               /*accelerationStructureCount*/,
          &m_TLAS.m_AccelerationStructure /*pAccelerationStructures*/
       };
 
       vk::WriteDescriptorSet accelerationStructureWrite = {
-         m_DescriptorSets[i]                          /*dstSet*/,
-         BINDING_TLAS                                 /*dstBinding*/,
-         0                                            /*dstArrayElement*/,
-         1                                            /*descriptorCount*/,
-         vk::DescriptorType::eAccelerationStructureNV /*descriptorType*/,
-         nullptr                                      /*pImageInfo*/,
-         nullptr                                      /*pBufferInfo*/,
-         nullptr                                      /*pTexelBufferView*/
+         m_DescriptorSets[i]                           /*dstSet*/,
+         BINDING_TLAS                                  /*dstBinding*/,
+         0                                             /*dstArrayElement*/,
+         1                                             /*descriptorCount*/,
+         vk::DescriptorType::eAccelerationStructureKHR /*descriptorType*/,
+         nullptr                                       /*pImageInfo*/,
+         nullptr                                       /*pBufferInfo*/,
+         nullptr                                       /*pTexelBufferView*/
       };
       accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo;
 
@@ -865,23 +904,41 @@ void RayTraceSpheres::RecordCommandBuffers() {
       1                                 /*layerCount*/
    };
 
+   const uint32_t handleSizeAligned = Vulkan::AlignedSize(m_RayTracingProperties.shaderGroupHandleSize, m_RayTracingProperties.shaderGroupBaseAlignment);
+
+   vk::DeviceAddress deviceAddress = m_ShaderBindingTable->GetBufferDeviceAddress();
+   const vk::StridedDeviceAddressRegionKHR raygenShaderBindingTable = {
+      deviceAddress + (handleSizeAligned * 0),
+      handleSizeAligned         /*stride*/,
+      handleSizeAligned * 1     /*size*/
+   };
+
+   const vk::StridedDeviceAddressRegionKHR missShaderBindingTable = {
+      deviceAddress + (handleSizeAligned * 1),
+      handleSizeAligned         /*stride*/,
+      handleSizeAligned * 1     /*size*/
+   };
+
+   const vk::StridedDeviceAddressRegionKHR hitShaderBindingTable = {
+      deviceAddress + (handleSizeAligned * 2),
+      handleSizeAligned         /*stride*/,
+      handleSizeAligned * 3     /*size*/
+   };
+
+   const vk::StridedDeviceAddressRegionKHR callableShaderBindingTable = {};
+
    for (uint32_t i = 0; i < m_CommandBuffers.size(); ++i) {
       vk::CommandBuffer& commandBuffer = m_CommandBuffers[i];
       commandBuffer.begin(commandBufferBI);
-      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenNV, 0, m_Constants);
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, m_Pipeline);
-      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
+      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenKHR, 0, m_Constants);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, m_Pipeline);
+      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
 
-      vk::DeviceSize bindingOffsetRayGenShader = m_RayTracingProperties.shaderGroupHandleSize * 0;
-      vk::DeviceSize bindingOffsetMissShader = m_RayTracingProperties.shaderGroupHandleSize * 1;
-      vk::DeviceSize bindingOffsetHitShader = m_RayTracingProperties.shaderGroupHandleSize * 2;
-      vk::DeviceSize bindingStride = m_RayTracingProperties.shaderGroupHandleSize;
-
-      commandBuffer.traceRaysNV(
-         m_ShaderBindingTable->m_Buffer, bindingOffsetRayGenShader,
-         m_ShaderBindingTable->m_Buffer, bindingOffsetMissShader, bindingStride,
-         m_ShaderBindingTable->m_Buffer, bindingOffsetHitShader, bindingStride,
-         nullptr, 0, 0,
+      commandBuffer.traceRaysKHR(
+         raygenShaderBindingTable,
+         missShaderBindingTable,
+         hitShaderBindingTable,
+         callableShaderBindingTable,
          m_Extent.width, m_Extent.height, 1
       );
 

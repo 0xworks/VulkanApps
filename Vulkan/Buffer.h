@@ -7,7 +7,7 @@ namespace Vulkan {
 class Buffer {
 public:
 
-   Buffer(vk::Device device, const vk::PhysicalDevice physicalDevice, const vk::DeviceSize size, const vk::BufferUsageFlags usage, const vk::MemoryPropertyFlags properties);
+   Buffer(vk::Device device, const vk::PhysicalDevice physicalDevice, const vk::DeviceSize size, const vk::BufferUsageFlags usage, const vk::MemoryPropertyFlags memoryProperties);
    Buffer(const Buffer&) = delete;   // You cannot copy Vulkan::Buffer wrapper object
    Buffer(Buffer&& that);            // but you can move it (i.e. move the underlying vulkan resources to another Vulkan::Buffer wrapper)
 
@@ -15,6 +15,8 @@ public:
    Buffer& operator=(Buffer&& that);
 
    virtual ~Buffer();
+
+   vk::DeviceAddress GetBufferDeviceAddress() const;
 
    vk::DeviceSize m_Size;
    vk::BufferUsageFlags m_Usage;

@@ -20,6 +20,7 @@ using vec3 = glm::vec3;
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <random>
@@ -79,39 +80,11 @@ RayTracer::~RayTracer() {
 }
 
 
-std::vector<const char*> RayTracer::GetRequiredInstanceExtensions() {
-   return {VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME};
-}
-
-
-std::vector<const char*> RayTracer::GetRequiredDeviceExtensions() {
-   return {VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, VK_NV_RAY_TRACING_EXTENSION_NAME, VK_KHR_MAINTENANCE3_EXTENSION_NAME, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME};
-}
-
-
-vk::PhysicalDeviceFeatures RayTracer::GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures availableFeatures) {
-   vk::PhysicalDeviceFeatures features;
-   if (availableFeatures.samplerAnisotropy) {
-      features.setSamplerAnisotropy(true);
-   } else {
-      ASSERT(false, "Device does not support sampler anisotrophy")
-   }
-   return features;
-}
-
-
-void* RayTracer::GetRequiredPhysicalDeviceFeaturesEXT() {
-   static vk::PhysicalDeviceDescriptorIndexingFeatures indexingFeatures;
-   indexingFeatures.runtimeDescriptorArray = 1;
-   return &indexingFeatures;
-}
-
-
 void RayTracer::Init() {
    Vulkan::Application::Init();
 
-   auto properties = m_PhysicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPropertiesNV>();
-   m_RayTracingProperties = properties.get<vk::PhysicalDeviceRayTracingPropertiesNV>();
+   auto properties = m_PhysicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+   m_RayTracingPipelineProperties = properties.get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
 
    // Check requested push constant size against hardware limit
    // Specs require 128 bytes, so if the device complies our push constant buffer should always fit into memory
@@ -135,6 +108,62 @@ void RayTracer::Init() {
    CreateDescriptorPool();
    CreateDescriptorSets();
    RecordCommandBuffers();
+}
+
+
+std::vector<const char*> RayTracer::GetRequiredInstanceExtensions() {
+   return {VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME};
+}
+
+
+std::vector<const char*> RayTracer::GetRequiredDeviceExtensions() {
+   return {
+      VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+      VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+      VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME
+   };
+}
+
+
+vk::PhysicalDeviceFeatures RayTracer::GetRequiredPhysicalDeviceFeatures(vk::PhysicalDeviceFeatures availableFeatures) {
+   vk::PhysicalDeviceFeatures features;
+   if (availableFeatures.samplerAnisotropy) {
+      features.setSamplerAnisotropy(true);
+   } else {
+      ASSERT(false, "Device does not support sampler anisotropy")
+   }
+   if (availableFeatures.fillModeNonSolid) {
+      features.setFillModeNonSolid(true);
+   } else {
+      ASSERT(false, "Device does not support fill mode non solid")
+   }
+   if (availableFeatures.shaderInt64) {
+      features.setShaderInt64(true);
+   } else {
+      ASSERT(false, "Device does not support shader int64")
+   }
+   return features;
+}
+
+
+void* RayTracer::GetRequiredPhysicalDeviceFeaturesEXT() {
+
+   static vk::PhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures;
+   bufferDeviceAddressFeatures.bufferDeviceAddress = true;
+
+   static vk::PhysicalDeviceDescriptorIndexingFeatures indexingFeatures;
+   indexingFeatures.runtimeDescriptorArray = true;
+   indexingFeatures.pNext = &bufferDeviceAddressFeatures;
+
+   static vk::PhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures;
+   accelerationStructureFeatures.accelerationStructure = true;
+   accelerationStructureFeatures.pNext = &indexingFeatures;
+
+   static vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingFeatures;
+   rayTracingFeatures.rayTracingPipeline = true;
+   rayTracingFeatures.pNext = &accelerationStructureFeatures;
+
+   return &rayTracingFeatures;
 }
 
 
@@ -227,14 +256,12 @@ void RayTracer::CreateSceneNormalsTest() {
       normals
    ));
 
-
-   m_Scene.AddInstance(std::make_unique<BoxInstance>(
+   m_Scene.AddInstance(std::make_unique<ProceduralBoxInstance>(
       glm::vec3 {2.0f, 0.0f, 0.0f},
       glm::vec3 {1.0f},
       glm::vec3 {glm::radians(20.0f), glm::radians(45.0f), glm::radians(0.0f)},
       normals
    ));
- 
 
    glm::vec3 glassCentre = {-2.0f, 0.0f, 0.0f};
    glm::vec3 glassSize = {1.0f, 1.0f, 1.0f};
@@ -719,7 +746,7 @@ void RayTracer::CreateVertexBuffer() {
    Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
    stagingBuffer.CopyFromHost(0, size, vertices.data());
 
-   m_VertexBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   m_VertexBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eDeviceLocal);
    CopyBuffer(stagingBuffer.m_Buffer, m_VertexBuffer->m_Buffer, 0, 0, size);
 }
 
@@ -754,7 +781,7 @@ void RayTracer::CreateIndexBuffer() {
    };
    stagingBuffer.CopyFromHost(0, size, indices.data());
 
-   m_IndexBuffer = std::make_unique<Vulkan::IndexBuffer>(m_Device, m_PhysicalDevice, size, count, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+   m_IndexBuffer = std::make_unique<Vulkan::IndexBuffer>(m_Device, m_PhysicalDevice, size, count, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eDeviceLocal);
    CopyBuffer(stagingBuffer.m_Buffer, m_IndexBuffer->m_Buffer, 0, 0, size);
 }
 
@@ -806,7 +833,7 @@ void RayTracer::CreateAABBBuffer() {
       Vulkan::Buffer stagingBuffer(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
       stagingBuffer.CopyFromHost(0, size, aabbs.data());
 
-      m_AABBBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal);
+      m_AABBBuffer = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eDeviceLocal);
       CopyBuffer(stagingBuffer.m_Buffer, m_AABBBuffer->m_Buffer, 0, 0, size);
    }
 }
@@ -1128,83 +1155,70 @@ void RayTracer::DestroyTextureResources() {
 
 
 void RayTracer::CreateAccelerationStructures() {
+
+   // BOTTOM LEVEL...
+   std::vector<Vulkan::GeometryGroup> geometryGroups;
+
+   // One model in the scene => one geometry group => one BLAS
+   vk::DeviceSize aabbOffset = 0;
    vk::DeviceSize vertexOffset = 0;
    vk::DeviceSize indexOffset = 0;
-   vk::DeviceSize aabbOffset = 0;
-   std::vector<std::vector<vk::GeometryNV>> geometryGroups;
-
-   geometryGroups.reserve(m_Scene.GetModels().size());
+   size_t runningTotalVertices = 0;
+   size_t maxVertex = m_VertexBuffer->m_Size / sizeof(Vertex);
    for (const auto& model : m_Scene.GetModels()) {
-      std::vector<vk::GeometryNV> geometries;
-      geometries.reserve(1);
-      geometries.emplace_back(
-         model->IsProcedural() ?
-         vk::GeometryNV {
-            vk::GeometryTypeNV::eAabbs                               /*geometryType*/,
-            vk::GeometryDataNV {
-               vk::GeometryTrianglesNV {}                                   /*triangles*/,
-               vk::GeometryAABBNV {
-                  m_AABBBuffer->m_Buffer                                       /*aabbData*/,
-                  1                                                            /*numAABBs*/,
-                  2 * sizeof(glm::vec3)                                        /*stride*/,
-                  aabbOffset                                                   /*offset*/
-               }                                                            /*aabbs*/
-            }                                                            /*geometry*/,
-            vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
-         }
-         :
-         vk::GeometryNV {
-            vk::GeometryTypeNV::eTriangles                               /*geometryType*/,
-            vk::GeometryDataNV {
-               vk::GeometryTrianglesNV {
-                  m_VertexBuffer->m_Buffer                                     /*vertexData*/,
-                  vertexOffset                                                 /*vertexOffset*/,
-                  static_cast<uint32_t>(model->GetVertices().size())               /*vertexCount*/,
-                  static_cast<vk::DeviceSize>(sizeof(Vertex))                  /*vertexStride*/,
-                  vk::Format::eR32G32B32Sfloat                                 /*vertexFormat*/,
-                  m_IndexBuffer->m_Buffer                                      /*indexData*/,
-                  indexOffset                                                  /*indexOffset*/,
-                  static_cast<uint32_t>(model->GetIndices().size())                /*indexCount*/,
-                  vk::IndexType::eUint32                                       /*indexType*/,
-                  nullptr                                                      /*transformData*/,
-                  0                                                            /*transformOffset*/
-               }                                                            /*triangles*/
-            }                                                            /*geometry*/,
-            vk::GeometryFlagBitsNV::eOpaque                              /*flags*/
-         }
-      );
-      geometryGroups.emplace_back(std::move(geometries));
-      vertexOffset += model->GetVertices().size() * sizeof(Vertex);
-      indexOffset += model->GetIndices().size() * sizeof(uint32_t);
+      // for now we only have one object in each geometry group (aka BLAS).  However, the data structure allows for more so that each "model" could consist of multiple meshes, for example.
+      Vulkan::GeometryGroup geometryGroup;
       if (model->IsProcedural()) {
+         geometryGroup.AddAABBs(m_AABBBuffer->GetBufferDeviceAddress(), aabbOffset, 2 * sizeof(glm::vec3), 1);
          aabbOffset += 2 * sizeof(glm::vec3);
+      } else {
+         geometryGroup.AddTrianglesIndexed(m_VertexBuffer->GetBufferDeviceAddress(), vertexOffset, sizeof(Vertex), model->GetVertices().size(), m_IndexBuffer->GetBufferDeviceAddress(), indexOffset, model->GetIndices().size(), runningTotalVertices, maxVertex);
+         vertexOffset += model->GetVertices().size() * sizeof(Vertex);
+         indexOffset += model->GetIndices().size() * sizeof(uint32_t);
+         runningTotalVertices += model->GetVertices().size();
       }
+      geometryGroups.emplace_back(std::move(geometryGroup));
    }
 
    CreateBottomLevelAccelerationStructures(geometryGroups);
 
+   // TOP LEVEL...
    uint32_t i = 0;
-   std::vector<Vulkan::GeometryInstance> geometryInstances;
-
-   geometryInstances.reserve(m_Scene.GetInstances().size());
+   std::vector<vk::AccelerationStructureInstanceKHR> instances;
+   instances.reserve(m_Scene.GetInstances().size());
    for (const auto& instance : m_Scene.GetInstances()) {
-      ASSERT(m_BLAS.at(instance->GetModelIndex()).m_Handle, "ERROR: BLAS handle is null.  Have you forgotten to allocate and bind memory?");
-      geometryInstances.emplace_back(
-         instance->GetTransform(),
-         i++                                                                           /*instance index*/,
-         0xff                                                                          /*visibility mask*/,
-         m_Scene.GetModels().at(instance->GetModelIndex())->GetShaderHitGroupIndex()   /*hit group index*/,
-         static_cast<uint32_t>(vk::GeometryInstanceFlagBitsNV::eTriangleCullDisable)   /*instance flags*/,
-         m_BLAS.at(instance->GetModelIndex()).m_Handle                                 /*acceleration structure handle*/
+      ASSERT(m_BLAS.at(instance->GetModelIndex()).m_AccelerationStructure, "ERROR: BLAS is null");
+
+      // surely there is an easier way to do this...?
+      std::array<std::array<float, 4>, 3> matrix;
+      memcpy(matrix.data(), glm::value_ptr(instance->GetTransform()), sizeof(matrix));
+
+      instances.emplace_back(
+         matrix                                                                        /*transform*/,
+         i++                                                                           /*instanceCustomIndex*/,
+         0xff                                                                          /*mask*/,
+         m_Scene.GetModels().at(instance->GetModelIndex())->GetShaderHitGroupIndex()   /*instanceShaderBindingTableRecordOffset*/,
+         vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable                         /*flags*/,
+         m_BLAS.at(instance->GetModelIndex()).m_DeviceAddress                          /*accelerationStructureReference*/
       );
    };
 
-   // Each geometry instance instantiates all of the geometries that are in the BLAS that the instance refers to.
-   // If you want to instantiate geometries independently of each other, then they need to be in different BLASs
-   // Apparently, a general rule is that the fewer BLASs the better. 
-   CreateTopLevelAccelerationStructure(geometryInstances);
+   Vulkan::Buffer instanceBuffer {
+      m_Device,
+      m_PhysicalDevice,
+      sizeof(vk::AccelerationStructureInstanceKHR) * instances.size(),
+      vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+   };
+   instanceBuffer.CopyFromHost(0, VK_WHOLE_SIZE, instances.data());
 
-   BuildAccelerationStructures(geometryInstances);
+   Vulkan::GeometryGroup group;
+   group.AddInstances(instanceBuffer.GetBufferDeviceAddress(), 0, false, instances.size());
+
+   // It seems wrong to create acceleration structure that refers to a buffer (instanceBuffer) that will be destroyed when this function exits.
+   // However, this is same behaviour as other online examples (e.g Sacha Willems), and nothing seems to crash.
+   CreateTopLevelAccelerationStructure(group);
+
 }
 
 
@@ -1269,18 +1283,18 @@ void RayTracer::CreateDescriptorSetLayout() {
    // So every shader binding should map to one descriptor set layout binding
 
    vk::DescriptorSetLayoutBinding accelerationStructureLB = {
-      BINDING_TLAS                                                                 /*binding*/,
-      vk::DescriptorType::eAccelerationStructureNV                                 /*descriptorType*/,
-      1                                                                            /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eClosestHitNV  /*stageFlags*/,
-      nullptr                                                                      /*pImmutableSamplers*/
+      BINDING_TLAS                                                                   /*binding*/,
+      vk::DescriptorType::eAccelerationStructureKHR                                  /*descriptorType*/,
+      1                                                                              /*descriptorCount*/,
+      vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eClosestHitKHR  /*stageFlags*/,
+      nullptr                                                                        /*pImmutableSamplers*/
    };
 
    vk::DescriptorSetLayoutBinding accumulationImageLB = {
       BINDING_ACCUMULATIONIMAGE             /*binding*/,
       vk::DescriptorType::eStorageImage     /*descriptorType*/,
       1                                     /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV    /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR   /*stageFlags*/,
       nullptr                               /*pImmutableSamplers*/
    };
 
@@ -1288,7 +1302,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_OUTPUTIMAGE                   /*binding*/,
       vk::DescriptorType::eStorageImage     /*descriptorType*/,
       1                                     /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV    /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR   /*stageFlags*/,
       nullptr                               /*pImmutableSamplers*/
    };
 
@@ -1296,7 +1310,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_UNIFORMBUFFER                                                                                           /*binding*/,
       vk::DescriptorType::eUniformBuffer                                                                              /*descriptorType*/,
       1                                                                                                               /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eRaygenNV | vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV | vk::ShaderStageFlagBits::eMissNV  /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eIntersectionKHR | vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eMissKHR  /*stageFlags*/,
       nullptr                                                                                                         /*pImmutableSamplers*/
    };
 
@@ -1304,7 +1318,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_VERTEXBUFFER                      /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eClosestHitNV    /*stageFlags*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR   /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
    
@@ -1312,7 +1326,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_INDEXBUFFER                       /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eClosestHitNV   /*stageFlags*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR   /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
 
@@ -1320,7 +1334,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_OFFSETBUFFER                      /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eClosestHitNV    /*stageFlags*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR   /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
 
@@ -1328,7 +1342,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_MATERIALBUFFER                    /*binding*/,
       vk::DescriptorType::eStorageBuffer        /*descriptorType*/,
       1                                         /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eIntersectionNV | vk::ShaderStageFlagBits::eClosestHitNV  /*stageFlags*/,
+      vk::ShaderStageFlagBits::eIntersectionKHR | vk::ShaderStageFlagBits::eClosestHitKHR  /*stageFlags*/,
       nullptr                                   /*pImmutableSamplers*/
    };
 
@@ -1336,7 +1350,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_TEXTURESAMPLERS                     /*binding*/,
       vk::DescriptorType::eCombinedImageSampler   /*descriptorType*/,
       static_cast<uint32_t>(m_Textures.size())    /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eClosestHitNV      /*stageFlags*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR     /*stageFlags*/,
       nullptr                                     /*pImmutableSamplers*/
    };
 
@@ -1344,7 +1358,7 @@ void RayTracer::CreateDescriptorSetLayout() {
       BINDING_SKYBOX                              /*binding*/,
       vk::DescriptorType::eCombinedImageSampler   /*descriptorType*/,
       1                                           /*descriptorCount*/,
-      vk::ShaderStageFlagBits::eMissNV            /*stageFlags*/,
+      vk::ShaderStageFlagBits::eMissKHR           /*stageFlags*/,
       nullptr                                     /*pImmutableSamplers*/
    };
 
@@ -1382,7 +1396,7 @@ void RayTracer::CreatePipelineLayout() {
    // In a more complex scenario you would have different pipeline layouts for different descriptor set layouts that could be reused
 
    vk::PushConstantRange pushConstantRange = {
-      vk::ShaderStageFlagBits::eRaygenNV         /*stageFlags*/,
+      vk::ShaderStageFlagBits::eRaygenKHR        /*stageFlags*/,
       0                                          /*offset*/,
       static_cast<uint32_t>(sizeof(Constants))   /*size*/
    };
@@ -1426,7 +1440,7 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eRayGen] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eRaygenNV                                           /*stage*/,
+      vk::ShaderStageFlagBits::eRaygenKHR                                          /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/RayTrace.rgen.spv"))     /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
@@ -1434,7 +1448,7 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eMiss] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eMissNV                                             /*stage*/,
+      vk::ShaderStageFlagBits::eMissKHR                                            /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/RayTrace.rmiss.spv"))    /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
@@ -1442,7 +1456,7 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eTrianglesClosestHit] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eClosestHitNV                                       /*stage*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR                                      /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Triangles.rchit.spv"))   /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
@@ -1450,7 +1464,7 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eSphereIntersection] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eIntersectionNV                                     /*stage*/,
+      vk::ShaderStageFlagBits::eIntersectionKHR                                    /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Sphere.rint.spv"))       /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
@@ -1458,7 +1472,7 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eSphereClosestHit] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eClosestHitNV                                       /*stage*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR                                      /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Sphere.rchit.spv"))      /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
@@ -1466,7 +1480,7 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eBoxIntersection] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eIntersectionNV                                     /*stage*/,
+      vk::ShaderStageFlagBits::eIntersectionKHR                                    /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Box.rint.spv"))          /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
@@ -1474,93 +1488,91 @@ void RayTracer::CreatePipeline() {
 
    shaderStages[eBoxClosestHit] = vk::PipelineShaderStageCreateInfo {
       {}                                                                           /*flags*/,
-      vk::ShaderStageFlagBits::eClosestHitNV                                       /*stage*/,
+      vk::ShaderStageFlagBits::eClosestHitKHR                                      /*stage*/,
       CreateShaderModule(Vulkan::ReadFile("Assets/Shaders/Box.rchit.spv"))         /*module*/,
       "main"                                                                       /*name*/,
       nullptr                                                                      /*pSpecializationInfo*/
    };
 
 
-   std::array<vk::RayTracingShaderGroupCreateInfoNV, eNumShaderGroups> groups;
+   std::array<vk::RayTracingShaderGroupCreateInfoKHR, eNumShaderGroups> groups;
 
-   groups[eRayGenGroup] = vk::RayTracingShaderGroupCreateInfoNV {
-      vk::RayTracingShaderGroupTypeNV::eGeneral /*type*/,
-      eRayGen                                   /*generalShader*/,
-      VK_SHADER_UNUSED_NV                       /*closestHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*intersectionShader*/
+   groups[eRayGenGroup] = vk::RayTracingShaderGroupCreateInfoKHR {
+      vk::RayTracingShaderGroupTypeKHR::eGeneral /*type*/,
+      eRayGen                                    /*generalShader*/,
+      VK_SHADER_UNUSED_KHR                       /*closestHitShader*/,
+      VK_SHADER_UNUSED_KHR                       /*anyHitShader*/,
+      VK_SHADER_UNUSED_KHR                       /*intersectionShader*/
    };
 
-   groups[eMissGroup] = vk::RayTracingShaderGroupCreateInfoNV {
-      vk::RayTracingShaderGroupTypeNV::eGeneral /*type*/,
-      eMiss                                     /*generalShader*/,
-      VK_SHADER_UNUSED_NV                       /*closestHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*intersectionShader*/
+   groups[eMissGroup] = vk::RayTracingShaderGroupCreateInfoKHR{
+      vk::RayTracingShaderGroupTypeKHR::eGeneral /*type*/,
+      eMiss                                      /*generalShader*/,
+      VK_SHADER_UNUSED_KHR                       /*closestHitShader*/,
+      VK_SHADER_UNUSED_KHR                       /*anyHitShader*/,
+      VK_SHADER_UNUSED_KHR                       /*intersectionShader*/
    };
 
-   groups[eTrianglesHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
-      vk::RayTracingShaderGroupTypeNV::eTrianglesHitGroup /*type*/,
-      VK_SHADER_UNUSED_NV                       /*generalShader*/,
+   groups[eTrianglesHitGroup] = vk::RayTracingShaderGroupCreateInfoKHR{
+      vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup /*type*/,
+      VK_SHADER_UNUSED_KHR                      /*generalShader*/,
       eTrianglesClosestHit                      /*closestHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*intersectionShader*/
+      VK_SHADER_UNUSED_KHR                      /*anyHitShader*/,
+      VK_SHADER_UNUSED_KHR                      /*intersectionShader*/
    };
 
-   groups[eSphereHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
-      vk::RayTracingShaderGroupTypeNV::eProceduralHitGroup /*type*/,
-      VK_SHADER_UNUSED_NV                       /*generalShader*/,
-      eSphereClosestHit                         /*closestHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      eSphereIntersection                       /*intersectionShader*/
+   groups[eSphereHitGroup] = vk::RayTracingShaderGroupCreateInfoKHR{
+      vk::RayTracingShaderGroupTypeKHR::eProceduralHitGroup /*type*/,
+      VK_SHADER_UNUSED_KHR                       /*generalShader*/,
+      eSphereClosestHit                          /*closestHitShader*/,
+      VK_SHADER_UNUSED_KHR                       /*anyHitShader*/,
+      eSphereIntersection                        /*intersectionShader*/
    };
 
-   groups[eBoxHitGroup] = vk::RayTracingShaderGroupCreateInfoNV {
-      vk::RayTracingShaderGroupTypeNV::eProceduralHitGroup /*type*/,
-      VK_SHADER_UNUSED_NV                       /*generalShader*/,
-      eBoxClosestHit                            /*closestHitShader*/,
-      VK_SHADER_UNUSED_NV                       /*anyHitShader*/,
-      eBoxIntersection                          /*intersectionShader*/
+   groups[eBoxHitGroup] = vk::RayTracingShaderGroupCreateInfoKHR{
+      vk::RayTracingShaderGroupTypeKHR::eProceduralHitGroup /*type*/,
+      VK_SHADER_UNUSED_KHR                       /*generalShader*/,
+      eBoxClosestHit                             /*closestHitShader*/,
+      VK_SHADER_UNUSED_KHR                       /*anyHitShader*/,
+      eBoxIntersection                           /*intersectionShader*/
    };
 
-   vk::RayTracingPipelineCreateInfoNV pipelineCI = {
+   vk::RayTracingPipelineCreateInfoKHR pipelineCI = {
       {}                                         /*flags*/,
       static_cast<uint32_t>(shaderStages.size()) /*stageCount*/,
       shaderStages.data()                        /*pStages*/,
       static_cast<uint32_t>(groups.size())       /*groupCount*/,
       groups.data()                              /*pGroups*/,
-      1                                          /*maxRecursionDepth*/,
+      1                                          /*maxPipelineRayRecursionDepth*/,
+      nullptr                                    /*pLibraryInfo*/,
+      nullptr                                    /*pLibraryInterface*/,
+      nullptr                                    /*pDynamicState*/,
       m_PipelineLayout                           /*layout*/,
       nullptr                                    /*basePipelineHandle*/,
       0                                          /*basePipelineIndex*/
    };
 
-   // .value works around bug in Vulkan.hpp (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/659)
-   m_Pipeline = m_Device.createRayTracingPipelineNV(m_PipelineCache, pipelineCI).value;
+   // .value works around issue with implicit cast of ResultValue<T> (refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/680)
+   m_Pipeline = m_Device.createRayTracingPipelineKHR(nullptr, m_PipelineCache, pipelineCI).value;
 
    // Create buffer for the shader binding table.
    // Note that regardless of the shaderGroupHandleSize, the entries in the shader binding table must be aligned on multiples of m_RayTracingProperties.shaderGroupBaseAlignment
-   uint32_t shaderBindingTableEntrySize = (m_RayTracingProperties.shaderGroupHandleSize + m_RayTracingProperties.shaderGroupBaseAlignment - 1) & ~(m_RayTracingProperties.shaderGroupBaseAlignment - 1);
 
-   const vk::DeviceSize tableSize = static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eNumShaderGroups;
-   const vk::DeviceSize handlesSize = static_cast<vk::DeviceSize>(m_RayTracingProperties.shaderGroupHandleSize) * eNumShaderGroups;
-
-   uint32_t tableStride = shaderBindingTableEntrySize;
-   uint32_t handleStride = m_RayTracingProperties.shaderGroupHandleSize;
+   const uint32_t handleSize = m_RayTracingPipelineProperties.shaderGroupHandleSize;
+   const uint32_t handleSizeAligned = Vulkan::AlignedSize(m_RayTracingPipelineProperties.shaderGroupHandleSize, m_RayTracingPipelineProperties.shaderGroupBaseAlignment);
+   const vk::DeviceSize tableSize = static_cast<vk::DeviceSize>(handleSizeAligned) * eNumShaderGroups;
+   const vk::DeviceSize handlesSize = static_cast<vk::DeviceSize>(handleSize) * eNumShaderGroups;
 
    // First, get all the handles from the device,  and then copy them to the shader binding table with the correct alignment
-   std::vector<uint8_t> shaderHandleStorage;
-   shaderHandleStorage.resize(handlesSize);
-   m_Device.getRayTracingShaderGroupHandlesNV<uint8_t>(m_Pipeline, 0, eNumShaderGroups, shaderHandleStorage);
+   std::vector<uint8_t> shaderHandleStorage = m_Device.getRayTracingShaderGroupHandlesKHR<uint8_t>(m_Pipeline, 0, eNumShaderGroups, handlesSize);
 
    std::vector<uint8_t> shaderBindingTable;
    shaderBindingTable.resize(tableSize);
-
-   for (uint32_t i = 0; i < eNumShaderGroups; ++i) {
-      std::memcpy(shaderBindingTable.data() + (i * tableStride), shaderHandleStorage.data() + (i * handleStride), handleStride);
+   for (size_t i = 0; i < eNumShaderGroups; ++i) {
+      std::memcpy(shaderBindingTable.data() + (i * static_cast<size_t>(handleSizeAligned)), shaderHandleStorage.data() + (i * static_cast<size_t>(handleSize)), static_cast<size_t>(handleSize));
    }
 
-   m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, tableSize, vk::BufferUsageFlagBits::eRayTracingNV, vk::MemoryPropertyFlagBits::eHostVisible);
+   m_ShaderBindingTable = std::make_unique<Vulkan::Buffer>(m_Device, m_PhysicalDevice, tableSize, vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress, vk::MemoryPropertyFlagBits::eHostVisible);
    m_ShaderBindingTable->CopyFromHost(0, tableSize, shaderBindingTable.data());
 
    // Shader modules are no longer needed once the graphics pipeline has been created
@@ -1581,7 +1593,7 @@ void RayTracer::DestroyPipeline() {
 void RayTracer::CreateDescriptorPool() {
    std::array<vk::DescriptorPoolSize, 5> typeCounts = {
       vk::DescriptorPoolSize {
-         vk::DescriptorType::eAccelerationStructureNV,
+         vk::DescriptorType::eAccelerationStructureKHR,
          static_cast<uint32_t>(m_SwapChainFrameBuffers.size())
       },
       vk::DescriptorPoolSize {
@@ -1634,20 +1646,20 @@ void RayTracer::CreateDescriptorSets() {
    // descriptor set matching that binding point
 
    for (uint32_t i = 0; i < m_SwapChainFrameBuffers.size(); ++i) {
-      vk::WriteDescriptorSetAccelerationStructureNV descriptorAccelerationStructureInfo = {
+      vk::WriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {
          1                               /*accelerationStructureCount*/,
          &m_TLAS.m_AccelerationStructure /*pAccelerationStructures*/
       };
 
       vk::WriteDescriptorSet accelerationStructureWrite = {
-         m_DescriptorSets[i]                          /*dstSet*/,
-         BINDING_TLAS                                 /*dstBinding*/,
-         0                                            /*dstArrayElement*/,
-         1                                            /*descriptorCount*/,
-         vk::DescriptorType::eAccelerationStructureNV /*descriptorType*/,
-         nullptr                                      /*pImageInfo*/,
-         nullptr                                      /*pBufferInfo*/,
-         nullptr                                      /*pTexelBufferView*/
+         m_DescriptorSets[i]                           /*dstSet*/,
+         BINDING_TLAS                                  /*dstBinding*/,
+         0                                             /*dstArrayElement*/,
+         1                                             /*descriptorCount*/,
+         vk::DescriptorType::eAccelerationStructureKHR /*descriptorType*/,
+         nullptr                                       /*pImageInfo*/,
+         nullptr                                       /*pBufferInfo*/,
+         nullptr                                       /*pTexelBufferView*/
       };
       accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo;
 
@@ -1851,20 +1863,41 @@ void RayTracer::RecordCommandBuffers() {
       800.0                       /*lens focal length        DISABLED IN RAYGEN SHADER*/
    };
 
+   const uint32_t handleSizeAligned = Vulkan::AlignedSize(m_RayTracingPipelineProperties.shaderGroupHandleSize, m_RayTracingPipelineProperties.shaderGroupBaseAlignment);
+
+   vk::DeviceAddress deviceAddress = m_ShaderBindingTable->GetBufferDeviceAddress();
+   const vk::StridedDeviceAddressRegionKHR raygenShaderBindingTable = {
+      deviceAddress + (handleSizeAligned * EShaderHitGroup::eRayGenGroup),
+      handleSizeAligned         /*stride*/,
+      handleSizeAligned * 1     /*size*/
+   };
+
+   const vk::StridedDeviceAddressRegionKHR missShaderBindingTable = {
+      deviceAddress + (handleSizeAligned * EShaderHitGroup::eMissGroup),
+      handleSizeAligned         /*stride*/,
+      handleSizeAligned * 1     /*size*/
+   };
+
+   const vk::StridedDeviceAddressRegionKHR hitShaderBindingTable = {
+      deviceAddress + (handleSizeAligned * EShaderHitGroup::eFirstHitGroup),
+      handleSizeAligned         /*stride*/,
+      handleSizeAligned * 3     /*size*/
+   };
+
+   const vk::StridedDeviceAddressRegionKHR callableShaderBindingTable = {};
+
    for (uint32_t i = 0; i < m_CommandBuffers.size(); ++i) {
       vk::CommandBuffer& commandBuffer = m_CommandBuffers[i];
       commandBuffer.begin(commandBufferBI);
-      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenNV, 0, constants);
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingNV, m_Pipeline);
-      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingNV, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
+      commandBuffer.pushConstants<Constants>(m_PipelineLayout, vk::ShaderStageFlagBits::eRaygenKHR, 0, constants);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, m_Pipeline);
+      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, m_PipelineLayout, 0, m_DescriptorSets[i], nullptr);  // (i)th command buffer is bound to the (i)th descriptor set
 
-      uint32_t shaderBindingTableEntrySize = (m_RayTracingProperties.shaderGroupHandleSize + m_RayTracingProperties.shaderGroupBaseAlignment - 1) & ~(m_RayTracingProperties.shaderGroupBaseAlignment - 1);
-
-      commandBuffer.traceRaysNV(
-         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eRayGenGroup,
-         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eMissGroup, shaderBindingTableEntrySize,
-         m_ShaderBindingTable->m_Buffer, static_cast<vk::DeviceSize>(shaderBindingTableEntrySize) * eFirstHitGroup, shaderBindingTableEntrySize,
-         nullptr, 0, 0,
+      commandBuffer.traceRaysKHR(
+         raygenShaderBindingTable,
+         missShaderBindingTable,
+         hitShaderBindingTable,
+         callableShaderBindingTable,
          m_Extent.width, m_Extent.height, 1
       );
 

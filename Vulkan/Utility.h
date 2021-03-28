@@ -35,4 +35,6 @@ bool HasStencilComponent(vk::Format format);
 
 std::vector<char> ReadFile(const std::string& filename);
 
+uint32_t AlignedSize(uint32_t value, uint32_t alignment);
+
 }

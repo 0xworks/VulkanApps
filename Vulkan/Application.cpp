@@ -177,7 +177,7 @@ void Application::CreateInstance() {
       m_Settings.ApplicationVersion,
       "Vulkan::Application",
       VK_MAKE_VERSION(1, 0, 0),
-      VK_API_VERSION_1_0
+      VK_API_VERSION_1_2
    };
 
    vk::DebugUtilsMessengerCreateInfoEXT debugCI {
@@ -929,7 +929,7 @@ void Application::SubmitSingleTimeCommands(const std::function<void(vk::CommandB
       1                                /*commandBufferCount*/
    });
 
-   commandBuffers[0].begin({VULKAN_HPP_NAMESPACE::CommandBufferUsageFlagBits::eOneTimeSubmit});
+   commandBuffers[0].begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
    action(commandBuffers[0]);
    commandBuffers[0].end();
 
@@ -1099,71 +1099,81 @@ void Application::GenerateMIPMaps(vk::Image image, const vk::Format format, cons
 }
 
 
-void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const std::vector<vk::GeometryNV>> geometryGroups) {
-   //
-   // one BLAS per vector of geometries in geometryGroups
-   //
-   // We create all of the BLAS, and then allocate one buffer for all of them (each one is offset into buffer)
-   //
-   for (const auto& geometries : geometryGroups) {
-      vk::AccelerationStructureInfoNV accelerationStructureInfo = {
-         vk::AccelerationStructureTypeNV::eBottomLevel                /*type*/,
-         vk::BuildAccelerationStructureFlagBitsNV::ePreferFastTrace   /*flags*/,
-         0                                                            /*instanceCount*/,
-         static_cast<uint32_t>(geometries.size())                     /*geometryCount*/,
-         geometries.data()                                            /*pGeometries*/
-      };
-      m_BLAS.emplace_back(accelerationStructureInfo);
+void Application::BuildAccelerationStructure(AccelerationStructure& accelerationStructure, const vk::AccelerationStructureTypeKHR type, const GeometryGroup& geometryGroup) {
+   // TODO: It might be slightly nicer to not have to re-query this stuff here.  Do it once on app startup...
+   auto features = m_PhysicalDevice.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceAccelerationStructureFeaturesKHR>();
 
-      vk::AccelerationStructureCreateInfoNV accelerationStructureCI = {
-         0                                         /*compactedSize*/,
-         m_BLAS.back().m_AccelerationStructureInfo /*info*/
-      };
-      m_BLAS.back().m_AccelerationStructure = m_Device.createAccelerationStructureNV(accelerationStructureCI);
+   vk::AccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = {
+      type                                                          /*type*/,
+      vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace   /*flags*/,
+      vk::BuildAccelerationStructureModeKHR::eBuild                 /*mode*/,
+      {}                                                            /*srcAccelerationStructure*/,
+      {}                                                            /*dstAccelerationStructure*/,
+      1                                                             /*geometryCount*/,
+      geometryGroup.m_Geometries.data()                             /*pGeometries*/,
+      nullptr                                                       /*ppGeometries*/,
+      nullptr                                                       /*scratchData*/
+   };
+
+   std::vector<uint32_t> primitiveCounts;
+   primitiveCounts.reserve(geometryGroup.m_BuildRanges.size());
+   for (const auto& buildRange : geometryGroup.m_BuildRanges) {
+      primitiveCounts.emplace_back(buildRange.primitiveCount);
    }
+   vk::AccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = m_Device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice, accelerationStructureBuildGeometryInfo, primitiveCounts);
 
-   std::vector<vk::MemoryRequirements2> memoryRequirements;
-   for (const auto& blas : m_BLAS) {
-      memoryRequirements.emplace_back(
-         m_Device.getAccelerationStructureMemoryRequirementsNV({
-            vk::AccelerationStructureMemoryRequirementsTypeNV::eObject /*type*/,
-            blas.m_AccelerationStructure                               /*accelerationStructure*/
-         })
+   accelerationStructure.m_Buffer = std::make_unique<Buffer>(
+      m_Device,
+      m_PhysicalDevice,
+      accelerationStructureBuildSizesInfo.accelerationStructureSize,
+      vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+      vk::MemoryPropertyFlagBits::eDeviceLocal
+   );
+
+   vk::AccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = {
+      {}                                               /*createFlags*/,
+      accelerationStructure.m_Buffer->m_Buffer         /*buffer*/,
+      {}                                               /*offset*/,
+      {}                                               /*size*/,
+      type                                             /*type*/,
+      {}                                               /*deviceAddress*/
+   };
+
+   accelerationStructure.m_AccelerationStructure = m_Device.createAccelerationStructureKHR(accelerationStructureCreateInfo);
+   accelerationStructure.m_DeviceAddress = m_Device.getAccelerationStructureAddressKHR({ accelerationStructure.m_AccelerationStructure });
+
+   Buffer scratch(
+      m_Device,
+      m_PhysicalDevice,
+      accelerationStructureBuildSizesInfo.buildScratchSize,
+      vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+      vk::MemoryPropertyFlagBits::eDeviceLocal
+   );
+
+   accelerationStructureBuildGeometryInfo.dstAccelerationStructure = accelerationStructure.m_AccelerationStructure;
+   accelerationStructureBuildGeometryInfo.scratchData.deviceAddress = scratch.GetBufferDeviceAddress();
+
+   if (features.get<vk::PhysicalDeviceAccelerationStructureFeaturesKHR>().accelerationStructureHostCommands) {
+      // build on host
+      m_Device.buildAccelerationStructuresKHR(
+         {},
+         accelerationStructureBuildGeometryInfo,
+         geometryGroup.m_BuildRanges.data()
       );
+   } else {
+      // build on device
+      SubmitSingleTimeCommands([&accelerationStructureBuildGeometryInfo, &geometryGroup](vk::CommandBuffer cmd) {
+         cmd.buildAccelerationStructuresKHR(accelerationStructureBuildGeometryInfo, geometryGroup.m_BuildRanges.data());
+      });
    }
 
-   vk::DeviceSize totalMemorySize = 0;
-   uint32_t memoryType = 0;
-   for (const auto& memoryRequirement : memoryRequirements) {
-      totalMemorySize += memoryRequirement.memoryRequirements.size;
-      memoryType = memoryRequirement.memoryRequirements.memoryTypeBits;
-   }
+}
 
-   vk::DeviceMemory objectMemory = m_Device.allocateMemory({
-      totalMemorySize,
-      Buffer::FindMemoryType(m_PhysicalDevice, memoryType, vk::MemoryPropertyFlagBits::eDeviceLocal)
-   });
 
-   vk::DeviceSize memoryOffset = 0;
-   uint32_t i = 0;
-   for (auto& blas : m_BLAS) {
-      blas.m_Memory = objectMemory;
-      vk::BindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo = {
-         blas.m_AccelerationStructure /*accelerationStructure*/,
-         blas.m_Memory                /*memory*/,
-         memoryOffset                 /*memoryOffset*/,
-         0                            /*deviceIndexCount*/,
-         nullptr                      /*pDeviceIndices*/
-      };
-      m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
-
-      // This ends up instantiating the wrong template.  compiler bug?
-      //m_Device.getAccelerationStructureHandleNV<uint64_t>(blas.m_AccelerationStructure, blas.m_Handle);
-      //
-      // workaround:
-      vk::ArrayProxy<uint64_t> handle(blas.m_Handle);
-      m_Device.getAccelerationStructureHandleNV<uint64_t>(blas.m_AccelerationStructure, handle);
-      memoryOffset += memoryRequirements[i++].memoryRequirements.size;
+void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<GeometryGroup> geometryGroups) {
+   for (const auto& geometryGroup : geometryGroups) {
+      m_BLAS.emplace_back();
+      BuildAccelerationStructure(m_BLAS.back(), vk::AccelerationStructureTypeKHR::eBottomLevel, geometryGroup);
    }
 }
 
@@ -1171,142 +1181,24 @@ void Application::CreateBottomLevelAccelerationStructures(vk::ArrayProxy<const s
 void Application::DestroyBottomLevelAccelerationStructures() {
    if (m_Device) {
       for (auto& blas : m_BLAS) {
-         // Workaround bug in vulkan.hpp (from Vulkan SDK version 1.2.141.2). Refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/633
-         //m_Device.destroy(blas.m_AccelerationStructure);
-         m_Device.destroyAccelerationStructureNV(blas.m_AccelerationStructure);
+         m_Device.destroy(blas.m_AccelerationStructure);
          blas.m_AccelerationStructure = nullptr;
-         blas.m_Handle = 0;
       }
-      if (m_BLAS.size() > 0) {
-         if (m_BLAS.front().m_Memory) {
-            m_Device.free(m_BLAS.front().m_Memory);
-         }
-      }
+      m_BLAS.clear();
    }
 }
 
 
-void Application::CreateTopLevelAccelerationStructure(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances) {
-   m_TLAS.m_AccelerationStructureInfo = {
-      vk::AccelerationStructureTypeNV::eTopLevel                   /*type*/,
-      vk::BuildAccelerationStructureFlagBitsNV::ePreferFastTrace   /*flags*/,
-      geometryInstances.size()                                     /*instanceCount*/,
-      0                                                            /*geometryCount*/,
-      nullptr                                                      /*pGeometries*/
-   };
-
-   m_TLAS.m_AccelerationStructure = m_Device.createAccelerationStructureNV({
-      0                                  /*compactedSize*/,
-      m_TLAS.m_AccelerationStructureInfo /*info*/
-   });
-
-   vk::MemoryRequirements2 memoryRequirementsTLAS = m_Device.getAccelerationStructureMemoryRequirementsNV({
-      vk::AccelerationStructureMemoryRequirementsTypeNV::eObject /*type*/,
-      m_TLAS.m_AccelerationStructure                             /*accelerationStructure*/
-   });
-
-   m_TLAS.m_Memory = m_Device.allocateMemory({
-      memoryRequirementsTLAS.memoryRequirements.size /*allocationSize*/,
-      Buffer::FindMemoryType(m_PhysicalDevice, memoryRequirementsTLAS.memoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
-   });
-
-   vk::BindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo = {
-      m_TLAS.m_AccelerationStructure /*accelerationStructure*/,
-      m_TLAS.m_Memory                /*memory*/,
-      0                              /*memoryOffset*/,
-      0                              /*deviceIndexCount*/,
-      nullptr                        /*pDeviceIndices*/
-   };
-   m_Device.bindAccelerationStructureMemoryNV(accelerationStructureMemoryInfo);
-   vk::ArrayProxy<uint64_t> handle(m_TLAS.m_Handle);
-   m_Device.getAccelerationStructureHandleNV<uint64_t>(m_TLAS.m_AccelerationStructure, handle);
+void Application::CreateTopLevelAccelerationStructure(GeometryGroup geometryGroup) {
+   BuildAccelerationStructure(m_TLAS, vk::AccelerationStructureTypeKHR::eTopLevel, geometryGroup);
 }
 
 
 void Application::DestroyTopLevelAccelerationStructure() {
    if (m_Device && m_TLAS.m_AccelerationStructure) {
-
-      // Workaround bug in vulkan.hpp (from Vulkan SDK version 1.2.141.2). Refer https://github.com/KhronosGroup/Vulkan-Hpp/issues/633
-      //m_Device.destroy(m_TLAS.m_AccelerationStructure);
-      m_Device.destroyAccelerationStructureNV(m_TLAS.m_AccelerationStructure);
-
-      m_TLAS.m_AccelerationStructure = nullptr;
-      if (m_TLAS.m_Memory) {
-         m_Device.free(m_TLAS.m_Memory);
-         m_TLAS.m_Memory = nullptr;
-      }
-      m_TLAS.m_Handle = 0;
+      m_Device.destroy(m_TLAS.m_AccelerationStructure);
+      m_TLAS.m_Buffer.reset(nullptr);
    }
-}
-
-
-void Application::BuildAccelerationStructures(vk::ArrayProxy<const Vulkan::GeometryInstance> geometryInstances) {
-   std::vector<vk::MemoryRequirements2> memoryRequirements;
-   for (const auto& blas : m_BLAS) {
-      memoryRequirements.emplace_back(
-         m_Device.getAccelerationStructureMemoryRequirementsNV({
-            vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch /*type*/,
-            blas.m_AccelerationStructure                                     /*accelerationStructure*/
-         })
-      );
-   }
-
-   vk::DeviceSize totalMemorySize = 0;
-   for (const auto& memoryRequirement : memoryRequirements) {
-      totalMemorySize += memoryRequirement.memoryRequirements.size;
-   }
-
-   Vulkan::Buffer scratchBufferBLAS = {
-      m_Device,
-      m_PhysicalDevice,
-      totalMemorySize,
-      vk::BufferUsageFlagBits::eRayTracingNV,
-      vk::MemoryPropertyFlagBits::eDeviceLocal
-   };
-
-   Vulkan::Buffer instanceBuffer = {
-      m_Device,
-      m_PhysicalDevice,
-      sizeof(Vulkan::GeometryInstance) * geometryInstances.size(),
-      vk::BufferUsageFlagBits::eRayTracingNV,
-      vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-   };
-   instanceBuffer.CopyFromHost(0, sizeof(Vulkan::GeometryInstance) * geometryInstances.size(), geometryInstances.data());
-
-   vk::MemoryRequirements2 memoryRequirementsTLAS = m_Device.getAccelerationStructureMemoryRequirementsNV({
-      vk::AccelerationStructureMemoryRequirementsTypeNV::eBuildScratch /*type*/,
-      m_TLAS.m_AccelerationStructure                                   /*accelerationStructure*/
-   });
-
-   Vulkan::Buffer scratchBufferTLAS = {
-      m_Device,
-      m_PhysicalDevice,
-      memoryRequirementsTLAS.memoryRequirements.size,
-      vk::BufferUsageFlagBits::eRayTracingNV,
-      vk::MemoryPropertyFlagBits::eDeviceLocal
-   };
-
-   SubmitSingleTimeCommands([&memoryRequirements, &scratchBufferBLAS, &instanceBuffer, &scratchBufferTLAS, this] (vk::CommandBuffer cmd) {
-      vk::DeviceSize scratchOffset = 0;
-      uint32_t i = 0;
-      for (const auto& blas : m_BLAS) {
-         // each build here has its own section of scratch memory.
-         // so we can queue them all up and do not need a memory barrier between BLAS builds
-         cmd.buildAccelerationStructureNV(blas.m_AccelerationStructureInfo, nullptr, 0, false, blas.m_AccelerationStructure, nullptr, scratchBufferBLAS.m_Buffer, scratchOffset);
-         scratchOffset += memoryRequirements[i++].memoryRequirements.size;
-      }
-
-      // GPU must wait for BLAS build to finish before doing TLAS build
-      // Also, you need to make sure the geometry instances have finished being copied to GPU before doing the TLAS build
-      // but that is already covered because instanceBuffer.CopyFromHost() above blocks until the GPU has done it
-      vk::MemoryBarrier memoryBarrier = {
-         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*srcAccesMask*/,
-         vk::AccessFlagBits::eAccelerationStructureWriteNV | vk::AccessFlagBits::eAccelerationStructureReadNV /*dstAccessMask*/
-      };
-      cmd.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, vk::PipelineStageFlagBits::eAccelerationStructureBuildNV, {}, memoryBarrier, nullptr, nullptr);
-
-      cmd.buildAccelerationStructureNV(m_TLAS.m_AccelerationStructureInfo, instanceBuffer.m_Buffer, 0, false, m_TLAS.m_AccelerationStructure, nullptr, scratchBufferTLAS.m_Buffer, 0);
-   });
 }
 
 
@@ -1332,5 +1224,54 @@ void glfwFramebufferResizeCallback(GLFWwindow* window, const int width, const in
    app->m_WantResize = true;
 }
 
+
+void GeometryGroup::AddAABBs(const vk::DeviceOrHostAddressConstKHR data, const vk::DeviceSize offset, const vk::DeviceSize stride, const size_t count) {
+   m_Geometries.emplace_back(
+      vk::GeometryTypeKHR::eAabbs                           /*geometryType*/,
+      vk::AccelerationStructureGeometryDataKHR{
+         vk::AccelerationStructureGeometryAabbsDataKHR {
+            data                                               /*data*/,
+            stride                                             /*stride*/
+         }
+      }                                                     /*geometry*/,
+      vk::GeometryFlagBitsKHR::eOpaque                      /*flags*/
+   );
+   m_BuildRanges.emplace_back(static_cast<uint32_t>(count), static_cast<uint32_t>(offset), 0, 0);
+}
+
+
+void GeometryGroup::AddTrianglesIndexed(const vk::DeviceOrHostAddressConstKHR vertexData, const vk::DeviceSize vertexOffset, const vk::DeviceSize vertexStride, const size_t vertexCount, const vk::DeviceOrHostAddressConstKHR indexData, const vk::DeviceSize indexOffset, const size_t indexCount, const size_t firstVertex, const size_t maxVertex) {
+   m_Geometries.emplace_back(
+      vk::GeometryTypeKHR::eTriangles                          /*geometryType*/,
+      vk::AccelerationStructureGeometryDataKHR{
+         vk::AccelerationStructureGeometryTrianglesDataKHR {
+            vk::Format::eR32G32B32Sfloat                                     /*vertexFormat*/,
+            vertexData                                                       /*vertexData*/,
+            vertexStride                                                     /*vertexStride*/,
+            static_cast<uint32_t>(maxVertex)                                 /*maxVertex*/,
+            vk::IndexType::eUint32                                           /*indexType*/,
+            indexData                                                        /*indexData*/,
+            {}                                                               /*transformData*/
+         }
+      }                                                        /*geometry*/,
+      vk::GeometryFlagBitsKHR::eOpaque                         /*flags*/
+   );
+   m_BuildRanges.emplace_back(static_cast<uint32_t>(indexCount) / 3, static_cast<uint32_t>(indexOffset), static_cast<uint32_t>(firstVertex), 0);
+}
+
+
+void GeometryGroup::AddInstances(const vk::DeviceOrHostAddressConstKHR data, const vk::DeviceSize offset, const vk::Bool32 arrayOfPointers, const size_t count) {
+   m_Geometries.emplace_back(
+      vk::GeometryTypeKHR::eInstances                          /*geometryType*/,
+      vk::AccelerationStructureGeometryDataKHR{
+         vk::AccelerationStructureGeometryInstancesDataKHR {
+            arrayOfPointers                                       /*arrayOfPointers*/,
+            data                                                  /*data*/
+         }
+      }                                                        /*geometry*/,
+      vk::GeometryFlagBitsKHR::eOpaque                         /*flags*/
+   );
+   m_BuildRanges.emplace_back(static_cast<uint32_t>(count), static_cast<uint32_t>(offset), 0, 0);
+}
 
 }

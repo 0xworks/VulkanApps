@@ -1,6 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
-#extension GL_NV_ray_tracing : require
+#extension GL_EXT_ray_tracing : require
 
 #include "Bindings.h"
 #include "Material.h"
@@ -13,8 +13,8 @@ layout(set = 0, binding = BINDING_VERTEXBUFFER) readonly buffer VertexArray { fl
 layout(set = 0, binding = BINDING_INDEXBUFFER) readonly buffer IndexArray { uint indices[]; };
 layout(set = 0, binding = BINDING_MATERIALBUFFER) readonly buffer MaterialArray { Material materials[]; };
 
-hitAttributeNV vec2 hit;
-rayPayloadInNV RayPayload ray;
+hitAttributeEXT vec2 hit;
+rayPayloadInEXT RayPayload ray;
 
 Vertex UnpackVertex(uint index)
 {
@@ -39,13 +39,13 @@ float Schlick(float cosine, float refractiveIndex) {
 RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal, const uint materialIndex, uint randomSeed) {
    switch(materials[materialIndex].type) {
       case MATERIAL_LAMBERTIAN: {
-         const vec4 colorAndDistance = vec4(materials[materialIndex].albedo.rgb, gl_RayTmaxNV);
+         const vec4 colorAndDistance = vec4(materials[materialIndex].albedo.rgb, gl_RayTmaxEXT);
          const vec3 target = hitPoint + normal + RandomInUnitSphere(randomSeed);
          const vec4 scatterDirection = vec4(target - hitPoint, 1);
          return RayPayload(colorAndDistance, scatterDirection, randomSeed);
       }
       case MATERIAL_METALLIC: {
-         const vec4 colorAndDistance = vec4(materials[materialIndex].albedo.rgb, gl_RayTmaxNV);
+         const vec4 colorAndDistance = vec4(materials[materialIndex].albedo.rgb, gl_RayTmaxEXT);
          const vec4 scatterDirection = vec4(reflect(direction, normal) + materials[materialIndex].roughness * RandomInUnitSphere(randomSeed), 1);
          return RayPayload(colorAndDistance, scatterDirection, randomSeed);
       }
@@ -64,7 +64,7 @@ RayPayload Scatter(const vec3 direction, const vec3 hitPoint, const vec3 normal,
             cosine = -dot(direction, normal) / length(direction);
          }
          const vec3 refracted = refract(direction, outward_normal, ni_over_nt);
-         const vec4 colorAndDistance = vec4(1.0, 1.0, 1.0, gl_RayTmaxNV);
+         const vec4 colorAndDistance = vec4(1.0, 1.0, 1.0, gl_RayTmaxEXT);
          if(dot(refracted, refracted) > 0) {
             reflect_prob = Schlick(cosine, materials[materialIndex].refractiveIndex);
          } else {
@@ -90,5 +90,5 @@ void main() {
    const vec3 hitPoint = v0.pos * barycentricCoords.x + v1.pos * barycentricCoords.y + v2.pos * barycentricCoords.z;
    const vec3 normal = normalize(v0.normal * barycentricCoords.x + v1.normal * barycentricCoords.y + v2.normal * barycentricCoords.z);
 
-   ray = Scatter(gl_WorldRayDirectionNV, hitPoint, normal, gl_InstanceID, ray.randomSeed);
+   ray = Scatter(gl_WorldRayDirectionEXT, hitPoint, normal, gl_InstanceID, ray.randomSeed);
 }

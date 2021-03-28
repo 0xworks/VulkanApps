@@ -1,6 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
-#extension GL_NV_ray_tracing : require
+#extension GL_EXT_ray_tracing : require
 
 #include "Bindings.glsl"
 #include "Material.glsl"
@@ -12,15 +12,15 @@ layout(set = 0, binding = BINDING_UNIFORMBUFFER) readonly uniform UBO {
    UniformBufferObject ubo;
 };
 
-hitAttributeNV vec4 unused;   // you must declare a hitAttributeNV otherwise the shader does not work properly!
+hitAttributeEXT vec4 unused;   // you must declare a hitAttributeEXT otherwise the shader does not work properly!
 
 void main() {
 
    // https://en.wikipedia.org/wiki/Quadratic_formula
 
-   const vec3 oc = gl_ObjectRayOriginNV; // centre = 0
-   const float a = dot(gl_ObjectRayDirectionNV, gl_ObjectRayDirectionNV);
-   const float b = dot(oc, gl_ObjectRayDirectionNV);
+   const vec3 oc = gl_ObjectRayOriginEXT; // centre = 0
+   const float a = dot(gl_ObjectRayDirectionEXT, gl_ObjectRayDirectionEXT);
+   const float b = dot(oc, gl_ObjectRayDirectionEXT);
    const float c = dot(oc, oc) - 1.0; // radius = 1
    const float discriminant = b * b - a * c;
 
@@ -28,27 +28,27 @@ void main() {
       float t1 = (-b - sqrt(discriminant)) / a;
       float t2 = (-b + sqrt(discriminant)) / a;
 
-      Material material = materials[gl_InstanceCustomIndexNV];
+      Material material = materials[gl_InstanceCustomIndexEXT];
       if(material.type == MATERIAL_SMOKE) {
          uint seed = InitRandomSeed(
             InitRandomSeed(
                InitRandomSeed(
                   InitRandomSeed(
-                     InitRandomSeed(gl_LaunchIDNV.x, gl_LaunchIDNV.y),
-                     uint(gl_WorldRayOriginNV.x)
+                     InitRandomSeed(gl_LaunchIDEXT.x, gl_LaunchIDEXT.y),
+                     uint(gl_WorldRayOriginEXT.x)
                   ),
-                  uint(gl_WorldRayOriginNV.y)
+                  uint(gl_WorldRayOriginEXT.y)
                ),
-               uint(gl_WorldRayOriginNV.z)
+               uint(gl_WorldRayOriginEXT.z)
             ),
             ubo.accumulatedFrameCount
          );
-         const float hitDistance = max(t1, gl_RayTminNV) + material.materialParameter1 * log(RandomFloat(seed));
-         if ((hitDistance <= t2) && (t2 < gl_RayTmaxNV)) {
-            reportIntersectionNV(hitDistance, 0);
+         const float hitDistance = max(t1, gl_RayTminEXT) + material.materialParameter1 * log(RandomFloat(seed));
+         if ((hitDistance <= t2) && (t2 < gl_RayTmaxEXT)) {
+            reportIntersectionEXT(hitDistance, 0);
          }
-      } else if ((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) || (gl_RayTminNV <= t2 && t2 < gl_RayTmaxNV)) {
-         reportIntersectionNV((gl_RayTminNV <= t1 && t1 < gl_RayTmaxNV) ? t1 : t2, 0);
+      } else if ((gl_RayTminEXT <= t1 && t1 < gl_RayTmaxEXT) || (gl_RayTminEXT <= t2 && t2 < gl_RayTmaxEXT)) {
+         reportIntersectionEXT((gl_RayTminEXT <= t1 && t1 < gl_RayTmaxEXT) ? t1 : t2, 0);
       }
    }
 }
